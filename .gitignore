@@ -1,0 +1,5 @@
+course/target/
+.vercel/
+.DS_Store
+Thumbs.db
+panel/

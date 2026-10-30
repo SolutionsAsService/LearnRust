@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 · Iterators and closures — LearnRust</title>
+<meta name="description" content="Chain filter, map and fold into a small log analyser, and write closures that capture their surroundings.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">07</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 07 of 13</p>
+      <h1>Iterators and closures</h1>
+      <p class="lede">Chain filter, map and fold into a small log analyser, and write closures that capture their surroundings.</p>
+      <ul class="chips" aria-label="Concepts"><li>Iterator</li><li>filter_map</li><li>fold</li><li>collect</li><li>closures</li><li>move</li><li>impl Fn</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 72 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/07-iterators-closures">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A log analyser that counts lines per level, extracts slow-request durations and filters long lines.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-07-iterators-closures
+cargo test -p lesson-07-iterators-closures</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>Iterators are lazy: nothing runs until something consumes them, like <code>collect</code>, <code>count</code> or <code>fold</code>.</li><li><code>filter_map</code> filters and transforms in one step by returning <code>Option</code>; the <code>None</code>s are dropped.</li><li><code>fold</code> threads an accumulator (here a <code>HashMap</code>) through every item.</li><li>A closure can capture variables; <code>move</code> makes it own them, so <code>longer_than</code> can return it.</li><li>These chains compile to loops as fast as ones you would write by hand.</li></ul>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 06: write <code>fn count_by&lt;T, F: Fn(&amp;T) -&gt; String&gt;(items: &amp;[T], key: F)</code> and use it to count log levels.</li><li>Find the most common request path.</li><li>Return the ERROR lines with their line numbers (<code>enumerate</code>).</li><li>Read the log from a file named on the command line (<code>std::env::args</code>).</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 07: iterators and closures: a tiny log analyser.</span>
+
+<span class="t-kw">use</span> std::collections::<span class="t-ty">HashMap</span>;
+
+<span class="t-kw">const</span> <span class="t-ty">SAMPLE</span>: &amp;str = &quot;\
+<span class="t-ty">INFO</span> server started on <span class="t-number">8080</span>
+<span class="t-ty">WARN</span> slow request /books 912ms
+<span class="t-ty">INFO</span> <span class="t-ty">GET</span> /books <span class="t-number">200</span>
+<span class="t-ty">ERROR</span> db timeout after 3000ms
+<span class="t-ty">INFO</span> <span class="t-ty">GET</span> /books <span class="t-number">200</span>
+<span class="t-ty">WARN</span> slow request /authors 1204ms
+<span class="t-ty">ERROR</span> db timeout after 3000ms
+<span class="t-ty">INFO</span> shutdown<span class="t-string">&quot;;
+
+/// Count lines per level, e.g. {&quot;</span><span class="t-ty">INFO</span><span class="t-string">&quot;: 4, ...}.
+fn count_levels(log: &amp;str) -&gt; HashMap&lt;&amp;str, usize&gt; {
+    log.lines()
+        .filter_map(|l| l.split_whitespace().next())
+        .fold(HashMap::new(), |mut m, level| {
+            *m.entry(level).or_insert(0) += 1;
+            m
+        })
+}
+
+/// Pull every &quot;</span>&lt;n&gt;ms<span class="t-string">&quot; duration out of WARN lines.
+fn slow_durations(log: &amp;str) -&gt; Vec&lt;u32&gt; {
+    log.lines()
+        .filter(|l| l.starts_with(&quot;</span><span class="t-ty">WARN</span><span class="t-string">&quot;))
+        .filter_map(|l| l.split_whitespace().last())
+        .filter_map(|w| w.strip_suffix(&quot;</span>ms<span class="t-string">&quot;))
+        .filter_map(|n| n.parse().ok())
+        .collect()
+}
+
+/// A closure that captures `min` from its environment.
+fn longer_than(min: usize) -&gt; impl Fn(&amp;&amp;str) -&gt; bool {
+    move |line| line.len() &gt; min
+}
+
+fn main() {
+    let mut levels: Vec&lt;_&gt; = count_levels(SAMPLE).into_iter().collect();
+    levels.sort();
+    println!(&quot;</span>levels: {levels:?}<span class="t-string">&quot;);
+    let slow = slow_durations(SAMPLE);
+    let avg = slow.iter().sum::&lt;u32&gt;() as f64 / slow.len().max(1) as f64;
+    println!(&quot;</span>slow requests: {slow:?}, average {avg:.<span class="t-number">0</span>} ms<span class="t-string">&quot;);
+    let long: Vec&lt;&amp;str&gt; = SAMPLE.lines().filter(longer_than(25)).collect();
+    println!(&quot;</span>{} lines longer than <span class="t-number">25</span> characters<span class="t-string">&quot;, long.len());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn counts_each_level() {
+        let m = count_levels(SAMPLE);
+        assert_eq!((m[&quot;</span><span class="t-ty">INFO</span><span class="t-string">&quot;], m[&quot;</span><span class="t-ty">WARN</span><span class="t-string">&quot;], m[&quot;</span><span class="t-ty">ERROR</span><span class="t-string">&quot;]), (4, 2, 2));
+    }
+
+    #[test]
+    fn extracts_slow_durations() {
+        assert_eq!(slow_durations(SAMPLE), vec![912, 1204]);
+    }
+
+    #[test]
+    fn closure_captures_its_threshold() {
+        let f = longer_than(3);
+        assert!(f(&amp;&quot;</span>abcd<span class="t-string">&quot;));
+        assert!(!f(&amp;&quot;</span>abc&quot;));
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>levels: [(&quot;ERROR&quot;, 2), (&quot;INFO&quot;, 4), (&quot;WARN&quot;, 2)]
+slow requests: [912, 1204], average 1058 ms
+5 lines longer than 25 characters
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="06-traits-generics.html"><span>Previous</span>06 · Traits and generics</a>
+    <a class="next" href="08-modules-testing.html"><span>Next</span>08 · Modules and testing</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

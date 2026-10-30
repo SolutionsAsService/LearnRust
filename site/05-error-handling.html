@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 · Error handling with Result — LearnRust</title>
+<meta name="description" content="Parse a config file where every failure is a typed value with a line number, not a crash.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">05</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 05 of 13</p>
+      <h1>Error handling with Result</h1>
+      <p class="lede">Parse a config file where every failure is a typed value with a line number, not a crash.</p>
+      <ul class="chips" aria-label="Concepts"><li>Result</li><li>Option</li><li>?</li><li>map_err</li><li>ok_or</li><li>custom error enum</li><li>Display</li><li>std::error::Error</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 85 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/05-error-handling">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A parser for <code>key = value</code> config text that returns either a <code>Config</code> or a precise error such as <code>line 2: \</code>70000\<code> is not a port (0-65535)</code>.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-05-error-handling
+cargo test -p lesson-05-error-handling</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>Rust has no exceptions. A function that can fail returns <code>Result&lt;T, E&gt;</code>, and the type system makes callers deal with it.</li><li><code>?</code> unwraps an <code>Ok</code> or returns the <code>Err</code> early. <code>map_err</code> converts a library error (like a failed <code>parse</code>) into your own.</li><li>A custom error <code>enum</code> carries exactly the facts needed to explain the problem; <code>Display</code> turns it into a sentence.</li><li>Parsing <code>port</code> as <code>u16</code> rejects 70000 for free: the type is the validation.</li></ul>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 04: rewrite <code>Inventory::sell</code> so its error type implements <code>Display</code>, like <code>ConfigError</code> here.</li><li>Allow <code>port</code> to be omitted with a default of 8080.</li><li>Add a <code>timeout_ms: u64</code> key.</li><li>Collect *all* errors instead of stopping at the first.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 05: errors as values: custom error types, `Display` and `?`.</span>
+
+<span class="t-kw">use</span> std::fmt;
+
+<span class="t-attr">#[derive(Debug, PartialEq)]</span>
+<span class="t-kw">struct</span> <span class="t-ty">Config</span> {
+    name: <span class="t-ty">String</span>,
+    port: u16,
+    debug: bool,
+}
+
+<span class="t-attr">#[derive(Debug, PartialEq)]</span>
+<span class="t-kw">enum</span> <span class="t-ty">ConfigError</span> {
+    <span class="t-ty">MissingEquals</span> { line: usize },
+    <span class="t-ty">UnknownKey</span> { line: usize, key: <span class="t-ty">String</span> },
+    <span class="t-ty">BadPort</span> { line: usize, value: <span class="t-ty">String</span> },
+    <span class="t-ty">BadBool</span> { line: usize, value: <span class="t-ty">String</span> },
+    <span class="t-ty">Missing</span>(&amp;<span class="t-lifetime">&#x27;static</span> str),
+}
+
+<span class="t-kw">impl</span> fmt::<span class="t-ty">Display</span> <span class="t-kw">for</span> <span class="t-ty">ConfigError</span> {
+    <span class="t-kw">fn</span> fmt(&amp;<span class="t-kw">self</span>, f: &amp;<span class="t-kw">mut</span> fmt::<span class="t-ty">Formatter</span>&lt;<span class="t-lifetime">&#x27;_</span>&gt;) -&gt; fmt::<span class="t-ty">Result</span> {
+        <span class="t-kw">match</span> <span class="t-kw">self</span> {
+            <span class="t-ty">ConfigError</span>::<span class="t-ty">MissingEquals</span> { line } =&gt; <span class="t-macro">write!</span>(f, <span class="t-string">&quot;line {line}: expected key=value&quot;</span>),
+            <span class="t-ty">ConfigError</span>::<span class="t-ty">UnknownKey</span> { line, key } =&gt; <span class="t-macro">write!</span>(f, <span class="t-string">&quot;line {line}: unknown key `{key}`&quot;</span>),
+            <span class="t-ty">ConfigError</span>::<span class="t-ty">BadPort</span> { line, value } =&gt; <span class="t-macro">write!</span>(f, <span class="t-string">&quot;line {line}: `{value}` is not a port (0-65535)&quot;</span>),
+            <span class="t-ty">ConfigError</span>::<span class="t-ty">BadBool</span> { line, value } =&gt; <span class="t-macro">write!</span>(f, <span class="t-string">&quot;line {line}: `{value}` is not true or false&quot;</span>),
+            <span class="t-ty">ConfigError</span>::<span class="t-ty">Missing</span>(key) =&gt; <span class="t-macro">write!</span>(f, <span class="t-string">&quot;missing required key `{key}`&quot;</span>),
+        }
+    }
+}
+
+<span class="t-kw">impl</span> std::error::<span class="t-ty">Error</span> <span class="t-kw">for</span> <span class="t-ty">ConfigError</span> {}
+
+<span class="t-kw">fn</span> parse_config(text: &amp;str) -&gt; <span class="t-ty">Result</span>&lt;<span class="t-ty">Config</span>, <span class="t-ty">ConfigError</span>&gt; {
+    <span class="t-kw">let</span> (<span class="t-kw">mut</span> name, <span class="t-kw">mut</span> port, <span class="t-kw">mut</span> debug) = (<span class="t-ty">None</span>, <span class="t-ty">None</span>, <span class="t-kw">false</span>);
+    <span class="t-kw">for</span> (i, raw) <span class="t-kw">in</span> text.lines().enumerate() {
+        <span class="t-kw">let</span> line = i + <span class="t-number">1</span>;
+        <span class="t-kw">let</span> raw = raw.trim();
+        <span class="t-kw">if</span> raw.is_empty() || raw.starts_with(<span class="t-char">&#x27;#&#x27;</span>) {
+            <span class="t-kw">continue</span>;
+        }
+        <span class="t-kw">let</span> (key, value) = raw.split_once(<span class="t-char">&#x27;=&#x27;</span>).ok_or(<span class="t-ty">ConfigError</span>::<span class="t-ty">MissingEquals</span> { line })?;
+        <span class="t-kw">let</span> (key, value) = (key.trim(), value.trim());
+        <span class="t-kw">match</span> key {
+            <span class="t-string">&quot;name&quot;</span> =&gt; name = <span class="t-ty">Some</span>(value.to_string()),
+            <span class="t-string">&quot;port&quot;</span> =&gt; port = <span class="t-ty">Some</span>(value.parse().map_err(|_| <span class="t-ty">ConfigError</span>::<span class="t-ty">BadPort</span> { line, value: value.into() })?),
+            <span class="t-string">&quot;debug&quot;</span> =&gt; debug = value.parse().map_err(|_| <span class="t-ty">ConfigError</span>::<span class="t-ty">BadBool</span> { line, value: value.into() })?,
+            other =&gt; <span class="t-kw">return</span> <span class="t-ty">Err</span>(<span class="t-ty">ConfigError</span>::<span class="t-ty">UnknownKey</span> { line, key: other.into() }),
+        }
+    }
+    <span class="t-ty">Ok</span>(<span class="t-ty">Config</span> { name: name.ok_or(<span class="t-ty">ConfigError</span>::<span class="t-ty">Missing</span>(<span class="t-string">&quot;name&quot;</span>))?, port: port.ok_or(<span class="t-ty">ConfigError</span>::<span class="t-ty">Missing</span>(<span class="t-string">&quot;port&quot;</span>))?, debug })
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> good = <span class="t-string">&quot;# server\nname = learnrust\nport = 8080\ndebug = true\n&quot;</span>;
+    <span class="t-kw">let</span> bad = <span class="t-string">&quot;name = learnrust\nport = 99999\n&quot;</span>;
+    <span class="t-kw">for</span> text <span class="t-kw">in</span> [good, bad] {
+        <span class="t-kw">match</span> parse_config(text) {
+            <span class="t-ty">Ok</span>(cfg) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;ok: {cfg:?}&quot;</span>),
+            <span class="t-ty">Err</span>(e) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;error: {e}&quot;</span>),
+        }
+    }
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> parses_a_good_file() {
+        <span class="t-kw">let</span> c = parse_config(<span class="t-string">&quot;name=a\nport=80&quot;</span>).unwrap();
+        <span class="t-macro">assert_eq!</span>(c, <span class="t-ty">Config</span> { name: <span class="t-string">&quot;a&quot;</span>.into(), port: <span class="t-number">80</span>, debug: <span class="t-kw">false</span> });
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> reports_the_line_of_a_bad_port() {
+        <span class="t-macro">assert_eq!</span>(parse_config(<span class="t-string">&quot;name=a\nport=70000&quot;</span>).unwrap_err(), <span class="t-ty">ConfigError</span>::<span class="t-ty">BadPort</span> { line: <span class="t-number">2</span>, value: <span class="t-string">&quot;70000&quot;</span>.into() });
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> needs_a_name() {
+        <span class="t-macro">assert_eq!</span>(parse_config(<span class="t-string">&quot;port=1&quot;</span>).unwrap_err().to_string(), <span class="t-string">&quot;missing required key `name`&quot;</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>ok: Config { name: &quot;learnrust&quot;, port: 8080, debug: true }
+error: line 2: `99999` is not a port (0-65535)
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="04-collections-inventory.html"><span>Previous</span>04 · Collections: a bookstore inventory</a>
+    <a class="next" href="06-traits-generics.html"><span>Next</span>06 · Traits and generics</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

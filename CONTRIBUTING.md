@@ -18,7 +18,7 @@ git clone https://github.com/SolutionsAsService/LearnRust
 cd LearnRust
 ```
 
-See the README for how to run or use what is here.
+Then run every lesson's tests from `course/` with `cargo test --workspace` (see the README).
 
 ## Making a change
 

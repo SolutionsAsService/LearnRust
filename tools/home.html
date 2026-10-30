@@ -1,0 +1,97 @@
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <p class="kicker">A free course in {{LESSONS}} programs</p>
+      <h1 id="hero-title">Learn Rust <em>by owning it.</em></h1>
+      <p class="lede">Every value in Rust has exactly one owner. Pass it on and the old name is gone, and the compiler will tell you, line and column, before your program ever runs. This course is built around that moment.</p>
+      <div class="actions">
+        <a class="btn btn-oxide" href="{{FIRST}}.html">Start lesson 01</a>
+        <a class="btn btn-line" href="course.html">See all {{LESSONS}} lessons</a>
+      </div>
+    </div>
+
+    <figure class="move" id="move" data-step="1" aria-labelledby="move-cap">
+      <div class="move-code" aria-hidden="true">
+        <div class="ln" data-l="1"><i>1</i><span><span class="t-kw">fn</span> main() {</span></div>
+        <div class="ln" data-l="2"><i>2</i><span>    <span class="t-kw">let</span> <b class="v-s">s</b> = <span class="t-ty">String</span>::from(<span class="t-string">"hello"</span>);</span></div>
+        <div class="ln" data-l="3"><i>3</i><span>    <span class="t-kw">let</span> <b class="v-t">t</b> = <b class="v-s2">s</b><span class="clone">.clone()</span>;</span></div>
+        <div class="ln" data-l="4"><i>4</i><span>    <span class="t-macro">println!</span>(<span class="t-string">"{<b class="v-s3">s</b>} {t}"</span>);</span></div>
+        <div class="ln" data-l="5"><i>5</i><span>}</span></div>
+      </div>
+
+      <svg class="memory" viewBox="0 0 520 210" aria-hidden="true" focusable="false">
+        <text class="m-label" x="20" y="22">STACK</text>
+        <text class="m-label" x="300" y="22">HEAP</text>
+        <g class="slot slot-s"><rect x="20" y="40" width="150" height="54" rx="6"/><text x="38" y="73">s</text><text class="moved" x="92" y="73">moved</text></g>
+        <g class="slot slot-t"><rect x="20" y="120" width="150" height="54" rx="6"/><text x="38" y="153">t</text></g>
+        <g class="heap heap-1"><rect x="300" y="60" width="200" height="54" rx="6"/><text x="320" y="93">"hello"</text></g>
+        <g class="heap heap-2"><rect x="300" y="140" width="200" height="54" rx="6"/><text x="320" y="173">"hello"</text><text class="copy-l" x="430" y="173">copy</text></g>
+        <path class="arrow a-s" d="M170 67 C 230 67, 240 87, 298 87"/>
+        <path class="arrow a-t" d="M170 147 C 235 147, 235 92, 298 92"/>
+        <path class="arrow a-t2" d="M170 147 C 230 147, 240 167, 298 167"/>
+      </svg>
+
+      <div class="rustc" aria-hidden="true">
+<pre class="r-err"><span class="note">rustc output, shortened</span>
+<span class="e">error[E0382]</span>: borrow of moved value: `s`
+ --&gt; src/main.rs:4:16
+  |
+2 |     let s = String::from("hello");
+  |         - move occurs because `s` has type `String`, which does not implement the `Copy` trait
+3 |     let t = s;
+  |             - value moved here
+4 |     println!("{s} {t}");
+  |                ^ value borrowed here after move</pre>
+<pre class="r-ok"><span class="ok">   Compiling</span> hello v0.1.0
+<span class="ok">    Finished</span> `dev` profile [unoptimized + debuginfo] target(s) in 3.39s
+<span class="ok">     Running</span> `target/debug/hello`
+hello hello</pre>
+      </div>
+
+      <div class="guess" id="guess" hidden>
+        <p id="guess-q">Which line won't compile?</p>
+        <div class="guess-btns" role="group" aria-labelledby="guess-q">
+          <button type="button" data-line="2">Line 2</button>
+          <button type="button" data-line="3">Line 3</button>
+          <button type="button" data-line="4">Line 4</button>
+        </div>
+      </div>
+      <figcaption id="move-cap">
+        <span class="steps" id="step-live" aria-live="off"><span class="step-text" id="step-text">Line 2: <code>s</code> owns a string on the heap.</span></span>
+        <span class="move-btns"><button class="btn btn-line btn-sm" id="move-next" type="button">Next step</button><button class="btn btn-line btn-sm" id="move-pause" type="button" aria-pressed="false">Pause</button></span>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band band-steel">
+  <div class="wrap stats" role="list">
+    <p role="listitem"><b>{{LESSONS}}</b><span>lessons, each a real crate</span></p>
+    <p role="listitem"><b>{{TESTS}}</b><span>tests, all passing</span></p>
+    <p role="listitem"><b>3</b><span>tracks, from ownership to a blockchain</span></p>
+    <p role="listitem"><b>{{WARNINGS}}</b><span>compiler warnings on {{RUSTC}}</span></p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <p class="kicker">The path</p>
+    <h2 class="h2">Start with ownership. <em>End with a chain.</em></h2>
+    <div class="cols">{{TRACK_COLS}}</div>
+  </div>
+</section>
+
+<section class="band band-plate">
+  <div class="wrap split">
+    <div>
+      <p class="kicker">How the lessons work</p>
+      <h2 class="h2">Read it. Run it. <em>Break it.</em></h2>
+      <p>Every lesson is a Cargo crate in one workspace: a short explanation, a program, its tests and the output it really prints. Each ends with three things to try, and at least one of them is breaking it on purpose to read what the compiler says.</p>
+      <p>Six of the lessons grew out of this repository's first programs (a bookstore inventory, a TCP server, a hash generator, a signature check and a toy blockchain), rebuilt so they compile, fixed where they were broken, and tested.</p>
+    </div>
+    <div class="snippet"><pre class="lang-bash"><code>git clone https://github.com/SolutionsAsService/LearnRust
+cd LearnRust/course
+cargo test --workspace
+cargo run -p lesson-02-ownership</code></pre><button class="copy" type="button">Copy</button></div>
+  </div>
+</section>

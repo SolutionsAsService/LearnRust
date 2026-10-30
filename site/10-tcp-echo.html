@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 · A TCP echo server — LearnRust</title>
+<meta name="description" content="Listen on a socket, serve each client on its own thread, handle disconnects and errors, and test it end to end.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">10</p>
+    <div>
+      <p class="kicker"><a href="course.html#systems">Systems</a> · Lesson 10 of 13</p>
+      <h1>A TCP echo server</h1>
+      <p class="lede">Listen on a socket, serve each client on its own thread, handle disconnects and errors, and test it end to end.</p>
+      <ul class="chips" aria-label="Concepts"><li>TcpListener</li><li>TcpStream</li><li>Read/Write</li><li>io::Result</li><li>threads</li><li>port 0 in tests</li></ul>
+      <p class="proof"><span class="ok">✓ 1 passing tests</span> · 63 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/10-tcp-echo">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A server that echoes back whatever each connected client sends, and a test that connects to it.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-10-tcp-echo
+# in another terminal:
+nc 127.0.0.1 7878
+cargo test -p lesson-10-tcp-echo</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li><code>TcpListener::bind</code> claims a port; <code>incoming()</code> yields a <code>TcpStream</code> per client.</li><li><code>read</code> returning <strong>0 bytes</strong> means the client hung up; the loop must stop there.</li><li><code>write_all</code> keeps writing until every byte is sent (plain <code>write</code> may send only part).</li><li>Errors are returned as <code>io::Result</code> and logged per client, so one bad client can&#x27;t crash the server.</li><li>The test binds to port <code>0</code>, so the operating system picks a free port.</li></ul>
+<h2 id="where-this-came-from">Where this came from</h2>
+<p>The original <code>Cyber/TCPServer/Main.rs</code> looped forever when a client disconnected (it kept echoing zero bytes), used <code>write</code> instead of <code>write_all</code>, and unwrapped every result. All three are fixed here.</p>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 05: give <code>handle_client</code> its own error enum instead of <code>io::Error</code>, with a <code>Display</code> message per case.</li><li>Uppercase the reply instead of echoing it.</li><li>Close idle clients after 30 seconds (<code>set_read_timeout</code>).</li><li>Rewrite it with <code>tokio</code> and async tasks, and compare.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 10: a TCP echo server, one thread per client.</span>
+<span class="t-comment">//! Grown from the repository&#x27;s original `Cyber/TCPServer/Main.rs`.</span>
+
+<span class="t-kw">use</span> std::io::{<span class="t-kw">self</span>, <span class="t-ty">Read</span>, <span class="t-ty">Write</span>};
+<span class="t-kw">use</span> std::net::{<span class="t-ty">TcpListener</span>, <span class="t-ty">TcpStream</span>};
+<span class="t-kw">use</span> std::thread;
+
+<span class="t-comment">/// Echo everything a client sends until it hangs up.</span>
+<span class="t-kw">fn</span> handle_client(<span class="t-kw">mut</span> stream: <span class="t-ty">TcpStream</span>) -&gt; io::<span class="t-ty">Result</span>&lt;()&gt; {
+    <span class="t-kw">let</span> peer = stream.peer_addr()?;
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> buffer = [<span class="t-number">0u8</span>; <span class="t-number">1024</span>];
+    <span class="t-kw">loop</span> {
+        <span class="t-kw">let</span> n = stream.read(&amp;<span class="t-kw">mut</span> buffer)?;
+        <span class="t-kw">if</span> n == <span class="t-number">0</span> {
+            <span class="t-macro">println!</span>(<span class="t-string">&quot;{peer} disconnected&quot;</span>);
+            <span class="t-kw">return</span> <span class="t-ty">Ok</span>(()); <span class="t-comment">// 0 bytes means the client closed the connection</span>
+        }
+        stream.write_all(&amp;buffer[..n])?;
+        <span class="t-macro">println!</span>(<span class="t-string">&quot;{peer}: echoed {n} bytes&quot;</span>);
+    }
+}
+
+<span class="t-comment">/// Accept clients forever, each on its own thread.</span>
+<span class="t-kw">fn</span> serve(listener: <span class="t-ty">TcpListener</span>) {
+    <span class="t-kw">for</span> stream <span class="t-kw">in</span> listener.incoming() {
+        <span class="t-kw">match</span> stream {
+            <span class="t-ty">Ok</span>(stream) =&gt; {
+                thread::spawn(<span class="t-kw">move</span> || {
+                    <span class="t-kw">if</span> <span class="t-kw">let</span> <span class="t-ty">Err</span>(e) = handle_client(stream) {
+                        <span class="t-macro">eprintln!</span>(<span class="t-string">&quot;client error: {e}&quot;</span>);
+                    }
+                });
+            }
+            <span class="t-ty">Err</span>(e) =&gt; <span class="t-macro">eprintln!</span>(<span class="t-string">&quot;accept failed: {e}&quot;</span>),
+        }
+    }
+}
+
+<span class="t-kw">fn</span> main() -&gt; io::<span class="t-ty">Result</span>&lt;()&gt; {
+    <span class="t-kw">let</span> listener = <span class="t-ty">TcpListener</span>::bind(<span class="t-string">&quot;127.0.0.1:7878&quot;</span>)?;
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;echo server on {}  (try: nc 127.0.0.1 7878)&quot;</span>, listener.local_addr()?);
+    serve(listener);
+    <span class="t-ty">Ok</span>(())
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> echoes_what_it_receives() {
+        <span class="t-comment">// Port 0 asks the OS for any free port, so tests never collide.</span>
+        <span class="t-kw">let</span> listener = <span class="t-ty">TcpListener</span>::bind(<span class="t-string">&quot;127.0.0.1:0&quot;</span>).unwrap();
+        <span class="t-kw">let</span> addr = listener.local_addr().unwrap();
+        thread::spawn(<span class="t-kw">move</span> || serve(listener));
+
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> client = <span class="t-ty">TcpStream</span>::connect(addr).unwrap();
+        client.write_all(<span class="t-string">b&quot;hello rust&quot;</span>).unwrap();
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> reply = [<span class="t-number">0u8</span>; <span class="t-number">10</span>];
+        client.read_exact(&amp;<span class="t-kw">mut</span> reply).unwrap();
+        <span class="t-macro">assert_eq!</span>(&amp;reply, <span class="t-string">b&quot;hello rust&quot;</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><p class="small">This one is a server: it runs until you stop it, so there is no fixed output. Its test connects to it and checks the echo.</p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="09-concurrency.html"><span>Previous</span>09 · Fearless concurrency</a>
+    <a class="next" href="11-hashing.html"><span>Next</span>11 · Hashing with SHA-256</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

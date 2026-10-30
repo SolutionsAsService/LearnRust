@@ -1,0 +1,3 @@
+6 words, longest is "ownership"
+OWNERSHIP IS THE HEART OF RUST!
+the clone still works: ownership is the heart of rust

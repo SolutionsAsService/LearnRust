@@ -1,0 +1,2 @@
+ok: Config { name: "learnrust", port: 8080, debug: true }
+error: line 2: `99999` is not a port (0-65535)

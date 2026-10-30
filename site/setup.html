@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up — LearnRust</title>
+<meta name="description" content="Install Rust, get the course and run every lesson&#x27;s tests.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html">Course</a><a href="setup.html" aria-current="page">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+<section class="page-head"><div class="wrap"><p class="kicker">Set up</p><h1>Ten minutes to <em>your first cargo test.</em></h1></div></section>
+<div class="wrap"><div class="prose prose-wide"><h2 id="1-install-rust">1. Install Rust</h2>
+<p>Install <code>rustup</code>, which manages the compiler (<code>rustc</code>), the build tool (<code>cargo</code>) and updates. Follow the instructions at <a href="https://rustup.rs">rustup.rs</a>. On macOS and Linux it is one command:</p>
+<div class="snippet"><pre class="lang-bash"><code>curl --proto &#x27;=https&#x27; --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre> <button class="copy" type="button">Copy</button></div>
+<p>On Windows, download and run <code>rustup-init.exe</code> from the same site. Then check it worked:</p>
+<div class="snippet"><pre class="lang-bash"><code>rustc --version
+cargo --version</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="2-get-the-course">2. Get the course</h2>
+<div class="snippet"><pre class="lang-bash"><code>git clone https://github.com/SolutionsAsService/LearnRust
+cd LearnRust/course</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="3-run-every-test">3. Run every test</h2>
+<p>The first run downloads a few crates (<code>sha2</code>, <code>ed25519-dalek</code>, <code>serde</code>) and compiles everything, which takes a minute or two.</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo test --workspace</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="4-run-one-lesson">4. Run one lesson</h2>
+<p>Each lesson is a package named <code>lesson-</code> plus its folder name:</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-01-hello-cargo
+cargo test -p lesson-02-ownership</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="5-an-editor-that-helps">5. An editor that helps</h2>
+<p>Any editor works. Visual Studio Code with the <strong>rust-analyzer</strong> extension shows types, errors and documentation as you type, which makes the borrow checker much friendlier.</p>
+<h2 id="when-something-goes-wrong">When something goes wrong</h2>
+<ul><li><code>error: linker &#x27;cc&#x27; not found</code> on Linux: install your distribution&#x27;s build tools (for example <code>build-essential</code>).</li><li>On Windows, <code>rustup</code> may ask for the Visual Studio C++ build tools; follow its prompt.</li><li>Read compiler errors from the top. The first one is usually the real problem, and <code>rustc --explain E0382</code> (with your error&#x27;s code) prints a full explanation.</li></ul></div></div>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

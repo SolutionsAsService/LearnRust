@@ -1,0 +1,4 @@
+circle     area   7.069
+rectangle  area  12.000
+triangle   area   6.000
+distance from origin: 5

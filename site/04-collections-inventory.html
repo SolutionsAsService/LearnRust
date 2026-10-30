@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · Collections: a bookstore inventory — LearnRust</title>
+<meta name="description" content="Keep records in a HashMap, return a Result instead of panicking, and keep the logic testable apart from input and output.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">04</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 04 of 13</p>
+      <h1>Collections: a bookstore inventory</h1>
+      <p class="lede">Keep records in a HashMap, return a Result instead of panicking, and keep the logic testable apart from input and output.</p>
+      <ul class="chips" aria-label="Concepts"><li>HashMap</li><li>entry API</li><li>Vec</li><li>sort_by</li><li>Result</li><li>? operator</li><li>stdin</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 117 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/04-collections-inventory">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>An interactive inventory: <code>add &lt;title&gt; | &lt;author&gt; | &lt;copies&gt;</code>, <code>sell &lt;title&gt;</code>, <code>list</code>, <code>exit</code>.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-04-collections-inventory
+cargo test -p lesson-04-collections-inventory</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li><code>HashMap&lt;String, Book&gt;</code> keys books by lower-cased title, so &quot;Dune&quot; and &quot;dune&quot; are the same book.</li><li>The <strong>entry API</strong> (<code>entry().and_modify().or_insert()</code>) adds or tops up in one expression.</li><li><code>sell</code> returns <code>Result&lt;u32, SellError&gt;</code> instead of printing, so the caller decides what to say and tests can check every outcome.</li><li><code>?</code> returns early with the error; <code>ok_or</code> turns a missing value (<code>None</code>) into an error.</li></ul>
+<h2 id="where-this-came-from">Where this came from</h2>
+<p>The repository&#x27;s first version, <code>bookstore_inventory.rs</code>, panicked on a non-numeric stock and mixed input with logic. This lesson keeps its idea and fixes both.</p>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 03: replace <code>SellError</code> with your own enum that also has a <code>Discontinued</code> variant, and handle it in every <code>match</code>.</li><li>Add a <code>restock &lt;title&gt; &lt;n&gt;</code> command.</li><li>Save the inventory to a file on exit and load it on start.</li><li>Add a <code>search &lt;word&gt;</code> command that matches authors too.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 04: a bookstore inventory with `HashMap`, `Vec` and `Result`.</span>
+<span class="t-comment">//! Grown from the repository&#x27;s original `bookstore_inventory.rs`.</span>
+
+<span class="t-kw">use</span> std::collections::<span class="t-ty">HashMap</span>;
+<span class="t-kw">use</span> std::io::{<span class="t-kw">self</span>, <span class="t-ty">BufRead</span>, <span class="t-ty">Write</span>};
+
+<span class="t-attr">#[derive(Debug, Clone, PartialEq)]</span>
+<span class="t-kw">struct</span> <span class="t-ty">Book</span> {
+    title: <span class="t-ty">String</span>,
+    author: <span class="t-ty">String</span>,
+    stock: u32,
+}
+
+<span class="t-attr">#[derive(Debug, PartialEq)]</span>
+<span class="t-kw">enum</span> <span class="t-ty">SellError</span> {
+    <span class="t-ty">NotFound</span>,
+    <span class="t-ty">OutOfStock</span>,
+}
+
+<span class="t-attr">#[derive(Default)]</span>
+<span class="t-kw">struct</span> <span class="t-ty">Inventory</span> {
+    books: <span class="t-ty">HashMap</span>&lt;<span class="t-ty">String</span>, <span class="t-ty">Book</span>&gt;,
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Inventory</span> {
+    <span class="t-comment">/// Add copies; a title that already exists gets its stock topped up.</span>
+    <span class="t-kw">fn</span> add(&amp;<span class="t-kw">mut</span> <span class="t-kw">self</span>, title: &amp;str, author: &amp;str, copies: u32) {
+        <span class="t-kw">self</span>.books
+            .entry(title.to_lowercase())
+            .and_modify(|b| b.stock += copies)
+            .or_insert(<span class="t-ty">Book</span> { title: title.into(), author: author.into(), stock: copies });
+    }
+
+    <span class="t-kw">fn</span> sell(&amp;<span class="t-kw">mut</span> <span class="t-kw">self</span>, title: &amp;str) -&gt; <span class="t-ty">Result</span>&lt;u32, <span class="t-ty">SellError</span>&gt; {
+        <span class="t-kw">let</span> book = <span class="t-kw">self</span>.books.get_mut(&amp;title.to_lowercase()).ok_or(<span class="t-ty">SellError</span>::<span class="t-ty">NotFound</span>)?;
+        <span class="t-kw">if</span> book.stock == <span class="t-number">0</span> {
+            <span class="t-kw">return</span> <span class="t-ty">Err</span>(<span class="t-ty">SellError</span>::<span class="t-ty">OutOfStock</span>);
+        }
+        book.stock -= <span class="t-number">1</span>;
+        <span class="t-ty">Ok</span>(book.stock)
+    }
+
+    <span class="t-comment">/// Books sorted by title, for stable output.</span>
+    <span class="t-kw">fn</span> list(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">Vec</span>&lt;&amp;<span class="t-ty">Book</span>&gt; {
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> v: <span class="t-ty">Vec</span>&lt;&amp;<span class="t-ty">Book</span>&gt; = <span class="t-kw">self</span>.books.values().collect();
+        v.sort_by(|a, b| a.title.cmp(&amp;b.title));
+        v
+    }
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> inv = <span class="t-ty">Inventory</span>::default();
+    inv.add(<span class="t-string">&quot;The Rust Programming Language&quot;</span>, <span class="t-string">&quot;Klabnik &amp; Nichols&quot;</span>, <span class="t-number">3</span>);
+    <span class="t-kw">let</span> stdin = io::stdin();
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;Commands: add &lt;title&gt; | &lt;author&gt; | &lt;copies&gt;, sell &lt;title&gt;, list, exit&quot;</span>);
+    <span class="t-kw">loop</span> {
+        <span class="t-macro">print!</span>(<span class="t-string">&quot;&gt; &quot;</span>);
+        io::stdout().flush().ok();
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> line = <span class="t-ty">String</span>::new();
+        <span class="t-kw">if</span> stdin.lock().read_line(&amp;<span class="t-kw">mut</span> line).unwrap_or(<span class="t-number">0</span>) == <span class="t-number">0</span> {
+            <span class="t-kw">break</span>; <span class="t-comment">// end of input</span>
+        }
+        <span class="t-kw">let</span> line = line.trim();
+        <span class="t-kw">let</span> (cmd, rest) = line.split_once(<span class="t-char">&#x27; &#x27;</span>).unwrap_or((line, <span class="t-string">&quot;&quot;</span>));
+        <span class="t-kw">match</span> cmd {
+            <span class="t-string">&quot;add&quot;</span> =&gt; {
+                <span class="t-kw">let</span> parts: <span class="t-ty">Vec</span>&lt;&amp;str&gt; = rest.split(<span class="t-char">&#x27;|&#x27;</span>).map(str::trim).collect();
+                <span class="t-kw">match</span> parts.as_slice() {
+                    [title, author, copies] =&gt; <span class="t-kw">match</span> copies.parse::&lt;u32&gt;() {
+                        <span class="t-ty">Ok</span>(n) =&gt; inv.add(title, author, n),
+                        <span class="t-ty">Err</span>(_) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;copies must be a whole number&quot;</span>),
+                    },
+                    _ =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;usage: add &lt;title&gt; | &lt;author&gt; | &lt;copies&gt;&quot;</span>),
+                }
+            }
+            <span class="t-string">&quot;sell&quot;</span> =&gt; <span class="t-kw">match</span> inv.sell(rest) {
+                <span class="t-ty">Ok</span>(left) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;sold one, {left} left&quot;</span>),
+                <span class="t-ty">Err</span>(<span class="t-ty">SellError</span>::<span class="t-ty">NotFound</span>) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;not in the inventory&quot;</span>),
+                <span class="t-ty">Err</span>(<span class="t-ty">SellError</span>::<span class="t-ty">OutOfStock</span>) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;out of stock&quot;</span>),
+            },
+            <span class="t-string">&quot;list&quot;</span> =&gt; {
+                <span class="t-kw">for</span> b <span class="t-kw">in</span> inv.list() {
+                    <span class="t-macro">println!</span>(<span class="t-string">&quot;{:&lt;40} {:&lt;20} {:&gt;3}&quot;</span>, b.title, b.author, b.stock);
+                }
+            }
+            <span class="t-string">&quot;exit&quot;</span> =&gt; <span class="t-kw">break</span>,
+            <span class="t-string">&quot;&quot;</span> =&gt; {}
+            other =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;unknown command: {other}&quot;</span>),
+        }
+    }
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> add_then_sell_down_to_zero() {
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> inv = <span class="t-ty">Inventory</span>::default();
+        inv.add(<span class="t-string">&quot;Dune&quot;</span>, <span class="t-string">&quot;Herbert&quot;</span>, <span class="t-number">1</span>);
+        <span class="t-macro">assert_eq!</span>(inv.sell(<span class="t-string">&quot;dune&quot;</span>), <span class="t-ty">Ok</span>(<span class="t-number">0</span>));
+        <span class="t-macro">assert_eq!</span>(inv.sell(<span class="t-string">&quot;Dune&quot;</span>), <span class="t-ty">Err</span>(<span class="t-ty">SellError</span>::<span class="t-ty">OutOfStock</span>));
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> unknown_title() {
+        <span class="t-macro">assert_eq!</span>(<span class="t-ty">Inventory</span>::default().sell(<span class="t-string">&quot;Nope&quot;</span>), <span class="t-ty">Err</span>(<span class="t-ty">SellError</span>::<span class="t-ty">NotFound</span>));
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> adding_again_tops_up() {
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> inv = <span class="t-ty">Inventory</span>::default();
+        inv.add(<span class="t-string">&quot;Dune&quot;</span>, <span class="t-string">&quot;Herbert&quot;</span>, <span class="t-number">1</span>);
+        inv.add(<span class="t-string">&quot;dune&quot;</span>, <span class="t-string">&quot;Herbert&quot;</span>, <span class="t-number">2</span>);
+        <span class="t-macro">assert_eq!</span>(inv.list()[<span class="t-number">0</span>].stock, <span class="t-number">3</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>Commands: add &lt;title&gt; | &lt;author&gt; | &lt;copies&gt;, sell &lt;title&gt;, list, exit
+&gt; list
+The Rust Programming Language            Klabnik &amp; Nichols      3
+&gt; add Dune | Frank Herbert | 2
+&gt; sell dune
+sold one, 1 left
+&gt; sell Dune
+sold one, 0 left
+&gt; sell Dune
+out of stock
+&gt; list
+Dune                                     Frank Herbert          0
+The Rust Programming Language            Klabnik &amp; Nichols      3
+&gt; exit
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="03-structs-enums.html"><span>Previous</span>03 · Structs, enums and match</a>
+    <a class="next" href="05-error-handling.html"><span>Next</span>05 · Error handling with Result</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

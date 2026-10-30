@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12 · Digital signatures — LearnRust</title>
+<meta name="description" content="Generate an Ed25519 key pair, sign a message, and prove that any change to the message, or the wrong key, fails verification.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">12</p>
+    <div>
+      <p class="kicker"><a href="course.html#cryptography">Cryptography</a> · Lesson 12 of 13</p>
+      <h1>Digital signatures</h1>
+      <p class="lede">Generate an Ed25519 key pair, sign a message, and prove that any change to the message, or the wrong key, fails verification.</p>
+      <ul class="chips" aria-label="Concepts"><li>ed25519-dalek 2</li><li>SigningKey / VerifyingKey</li><li>OsRng</li><li>Cargo features</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 57 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/12-signatures">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A program that signs a message and shows that the original verifies while a tampered copy doesn&#x27;t.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-12-signatures
+cargo test -p lesson-12-signatures</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>A <strong>signing key</strong> stays private; its <strong>verifying key</strong> can be shared with anyone.</li><li><code>sign</code> produces a 64-byte signature tied to both the key and the exact message.</li><li><code>verify</code> fails if a single byte of the message changes, or if the wrong public key is used.</li><li><code>features = [&quot;rand_core&quot;]</code> in <code>Cargo.toml</code> switches on the crate&#x27;s key generation from a random source.</li></ul>
+<h2 id="where-this-came-from">Where this came from</h2>
+<p>The original <code>Cyber/SigValidate</code> used <code>Keypair</code> and <code>PublicKey</code> from ed25519-dalek 1. Version 2 renamed them <code>SigningKey</code> and <code>VerifyingKey</code>, so the old code no longer compiles against the current crate. This lesson is the port.</p>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 11: sign the SHA-256 hex of a message instead of the message itself. Does verification still catch tampering?</li><li>Save the public key to a file and verify in a second program.</li><li>Sign the SHA-256 of a file (lesson 11) instead of the file itself.</li><li>Measure how many signatures per second your machine verifies.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 12: digital signatures with Ed25519.</span>
+<span class="t-comment">//! Grown from the repository&#x27;s original `Cyber/SigValidate/Main.rs` (ported to ed25519-dalek 2).</span>
+
+<span class="t-kw">use</span> ed25519_dalek::{<span class="t-ty">Signature</span>, <span class="t-ty">Signer</span>, <span class="t-ty">SigningKey</span>, <span class="t-ty">Verifier</span>, <span class="t-ty">VerifyingKey</span>};
+<span class="t-kw">use</span> rand::rngs::<span class="t-ty">OsRng</span>;
+
+<span class="t-comment">/// Sign a message with a private key.</span>
+<span class="t-kw">fn</span> sign(key: &amp;<span class="t-ty">SigningKey</span>, message: &amp;[u8]) -&gt; <span class="t-ty">Signature</span> {
+    key.sign(message)
+}
+
+<span class="t-comment">/// Anyone with the public key can check the signature.</span>
+<span class="t-kw">fn</span> is_authentic(public: &amp;<span class="t-ty">VerifyingKey</span>, message: &amp;[u8], sig: &amp;<span class="t-ty">Signature</span>) -&gt; bool {
+    public.verify(message, sig).is_ok()
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> signing_key = <span class="t-ty">SigningKey</span>::generate(&amp;<span class="t-kw">mut</span> <span class="t-ty">OsRng</span>);
+    <span class="t-kw">let</span> public = signing_key.verifying_key();
+
+    <span class="t-kw">let</span> message = <span class="t-string">b&quot;Rust Blockchain Trust&quot;</span>;
+    <span class="t-kw">let</span> sig = sign(&amp;signing_key, message);
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;public key: {}&quot;</span>, hex(public.as_bytes()));
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;signature:  {}&quot;</span>, hex(&amp;sig.to_bytes()));
+
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;original message verifies: {}&quot;</span>, is_authentic(&amp;public, message, &amp;sig));
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;tampered message verifies: {}&quot;</span>, is_authentic(&amp;public, <span class="t-string">b&quot;Rust Blockchain Trust!&quot;</span>, &amp;sig));
+}
+
+<span class="t-kw">fn</span> hex(bytes: &amp;[u8]) -&gt; <span class="t-ty">String</span> {
+    bytes.iter().map(|b| <span class="t-macro">format!</span>(<span class="t-string">&quot;{b:02x}&quot;</span>)).collect()
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> genuine_message_verifies() {
+        <span class="t-kw">let</span> key = <span class="t-ty">SigningKey</span>::generate(&amp;<span class="t-kw">mut</span> <span class="t-ty">OsRng</span>);
+        <span class="t-kw">let</span> sig = sign(&amp;key, <span class="t-string">b&quot;pay 10&quot;</span>);
+        <span class="t-macro">assert!</span>(is_authentic(&amp;key.verifying_key(), <span class="t-string">b&quot;pay 10&quot;</span>, &amp;sig));
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> tampered_message_fails() {
+        <span class="t-kw">let</span> key = <span class="t-ty">SigningKey</span>::generate(&amp;<span class="t-kw">mut</span> <span class="t-ty">OsRng</span>);
+        <span class="t-kw">let</span> sig = sign(&amp;key, <span class="t-string">b&quot;pay 10&quot;</span>);
+        <span class="t-macro">assert!</span>(!is_authentic(&amp;key.verifying_key(), <span class="t-string">b&quot;pay 1000&quot;</span>, &amp;sig));
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> someone_elses_key_fails() {
+        <span class="t-kw">let</span> (a, b) = (<span class="t-ty">SigningKey</span>::generate(&amp;<span class="t-kw">mut</span> <span class="t-ty">OsRng</span>), <span class="t-ty">SigningKey</span>::generate(&amp;<span class="t-kw">mut</span> <span class="t-ty">OsRng</span>));
+        <span class="t-macro">assert!</span>(!is_authentic(&amp;b.verifying_key(), <span class="t-string">b&quot;hi&quot;</span>, &amp;sign(&amp;a, <span class="t-string">b&quot;hi&quot;</span>)));
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>public key: fe5d02135b23db61c137d86bb1e40d3799f0cc94a417184304debb70d3bc9d3d
+signature:  49e491a2c0d6358966578c79cc01d708ddb03a53f17a95afe98c6d1f4c0233af98094e0a34393c26e75e7429527039c24edc72887732358c047371823e712d0a
+original message verifies: true
+tampered message verifies: false
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. Keys and signatures are random, so yours will differ.</p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="11-hashing.html"><span>Previous</span>11 · Hashing with SHA-256</a>
+    <a class="next" href="13-blockchain.html"><span>Next</span>13 · A toy blockchain</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

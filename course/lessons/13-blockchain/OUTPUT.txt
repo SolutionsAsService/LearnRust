@@ -1,0 +1,12 @@
+mined block 1 with nonce  11398: 0000a7cb8b69c636d59014905c7aed0c3484aae599968bccb0ec07d2e4436f52
+mined block 2 with nonce  80558: 000070c97a52839961be04e883699ebbe9ad63082755c62ac324dd0f03446d7a
+valid: Ok(())
+after tampering: Err("block 1: hash doesn't match its contents")
+{
+  "index": 0,
+  "timestamp": 1793377528,
+  "data": "genesis",
+  "prev_hash": "0",
+  "nonce": 48117,
+  "hash": "00001a6df7cf7fc21e792680b2bd89fbe15d3ff377a34cda662feeb12a7f59f2"
+}

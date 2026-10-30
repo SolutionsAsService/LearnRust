@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13 · A toy blockchain — LearnRust</title>
+<meta name="description" content="Chain blocks by hash, mine them with proof of work, and write the validator that catches tampering.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">13</p>
+    <div>
+      <p class="kicker"><a href="course.html#cryptography">Cryptography</a> · Lesson 13 of 13</p>
+      <h1>A toy blockchain</h1>
+      <p class="lede">Chain blocks by hash, mine them with proof of work, and write the validator that catches tampering.</p>
+      <ul class="chips" aria-label="Concepts"><li>sha2</li><li>serde + serde_json</li><li>proof of work</li><li>Result for validation</li><li>Vec manipulation</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 121 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/13-blockchain">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A blockchain that mines blocks to a chosen difficulty, prints them as JSON, and detects when anyone edits history.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run --release -p lesson-13-blockchain
+cargo test -p lesson-13-blockchain</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>Each block&#x27;s hash covers its index, time, data, the previous block&#x27;s hash and a <code>nonce</code>.</li><li><strong>Mining</strong> tries nonces until the hash starts with <code>difficulty</code> zeros. Each extra zero means about 16 times more tries on average, because a hex digit has 16 possible values and only one of them is <code>0</code>.</li><li>Because every block stores the previous hash, changing old data breaks every link after it, which <code>validate</code> reports.</li><li><code>#[derive(Serialize)]</code> plus <code>serde_json</code> turns a block into JSON with one call.</li><li>Use <code>--release</code> to run. On the machine that built this site, the whole program took about 11 s in a debug build and 2.4 s with <code>--release</code> (two runs each); your numbers will differ.</li></ul>
+<h2 id="where-this-came-from">Where this came from</h2>
+<p>The original <code>Basic_blockchain.rs</code> mined blocks but had no validator, no Cargo project, and its hash input didn&#x27;t include the block index. This version adds all three and the tests.</p>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 09: mine with several threads, each trying a different range of nonces, and stop them all when one finds a hash.</li><li>Time mining at difficulty 3, 4 and 5.</li><li>Sign each block&#x27;s data with lesson 12&#x27;s keys and check signatures in <code>validate</code>.</li><li>Store a <code>Vec</code> of transactions per block instead of a string.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 13: a toy proof-of-work blockchain, with validation.</span>
+<span class="t-comment">//! Grown from the repository&#x27;s original `Basic_blockchain.rs`.</span>
+
+<span class="t-kw">use</span> serde::<span class="t-ty">Serialize</span>;
+<span class="t-kw">use</span> sha2::{<span class="t-ty">Digest</span>, <span class="t-ty">Sha256</span>};
+<span class="t-kw">use</span> std::time::{<span class="t-ty">SystemTime</span>, <span class="t-ty">UNIX_EPOCH</span>};
+
+<span class="t-attr">#[derive(Debug, Clone, Serialize)]</span>
+<span class="t-kw">struct</span> <span class="t-ty">Block</span> {
+    index: u64,
+    timestamp: u64,
+    data: <span class="t-ty">String</span>,
+    prev_hash: <span class="t-ty">String</span>,
+    nonce: u64,
+    hash: <span class="t-ty">String</span>,
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Block</span> {
+    <span class="t-kw">fn</span> hash_of(index: u64, timestamp: u64, data: &amp;str, prev_hash: &amp;str, nonce: u64) -&gt; <span class="t-ty">String</span> {
+        <span class="t-kw">let</span> digest = <span class="t-ty">Sha256</span>::digest(<span class="t-macro">format!</span>(<span class="t-string">&quot;{index}|{timestamp}|{data}|{prev_hash}|{nonce}&quot;</span>));
+        digest.iter().map(|b| <span class="t-macro">format!</span>(<span class="t-string">&quot;{b:02x}&quot;</span>)).collect()
+    }
+
+    <span class="t-kw">fn</span> compute_hash(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">String</span> {
+        <span class="t-kw">Self</span>::hash_of(<span class="t-kw">self</span>.index, <span class="t-kw">self</span>.timestamp, &amp;<span class="t-kw">self</span>.data, &amp;<span class="t-kw">self</span>.prev_hash, <span class="t-kw">self</span>.nonce)
+    }
+
+    <span class="t-comment">/// Proof of work: find a nonce whose hash starts with `difficulty` zeros.</span>
+    <span class="t-kw">fn</span> mine(index: u64, data: &amp;str, prev_hash: &amp;str, difficulty: usize) -&gt; <span class="t-ty">Block</span> {
+        <span class="t-kw">let</span> timestamp = <span class="t-ty">SystemTime</span>::now().duration_since(<span class="t-ty">UNIX_EPOCH</span>).unwrap().as_secs();
+        <span class="t-kw">let</span> target = <span class="t-string">&quot;0&quot;</span>.repeat(difficulty);
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> nonce = <span class="t-number">0</span>;
+        <span class="t-kw">loop</span> {
+            <span class="t-kw">let</span> hash = <span class="t-kw">Self</span>::hash_of(index, timestamp, data, prev_hash, nonce);
+            <span class="t-kw">if</span> hash.starts_with(&amp;target) {
+                <span class="t-kw">return</span> <span class="t-ty">Block</span> { index, timestamp, data: data.into(), prev_hash: prev_hash.into(), nonce, hash };
+            }
+            nonce += <span class="t-number">1</span>;
+        }
+    }
+}
+
+<span class="t-attr">#[derive(Debug, Serialize)]</span>
+<span class="t-kw">struct</span> <span class="t-ty">Chain</span> {
+    difficulty: usize,
+    blocks: <span class="t-ty">Vec</span>&lt;<span class="t-ty">Block</span>&gt;,
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Chain</span> {
+    <span class="t-kw">fn</span> new(difficulty: usize) -&gt; <span class="t-ty">Chain</span> {
+        <span class="t-ty">Chain</span> { difficulty, blocks: <span class="t-macro">vec!</span>[<span class="t-ty">Block</span>::mine(<span class="t-number">0</span>, <span class="t-string">&quot;genesis&quot;</span>, <span class="t-string">&quot;0&quot;</span>, difficulty)] }
+    }
+
+    <span class="t-kw">fn</span> add(&amp;<span class="t-kw">mut</span> <span class="t-kw">self</span>, data: &amp;str) -&gt; &amp;<span class="t-ty">Block</span> {
+        <span class="t-kw">let</span> prev = <span class="t-kw">self</span>.blocks.last().expect(<span class="t-string">&quot;a chain always has a genesis block&quot;</span>);
+        <span class="t-kw">let</span> block = <span class="t-ty">Block</span>::mine(prev.index + <span class="t-number">1</span>, data, &amp;prev.hash, <span class="t-kw">self</span>.difficulty);
+        <span class="t-kw">self</span>.blocks.push(block);
+        <span class="t-kw">self</span>.blocks.last().unwrap()
+    }
+
+    <span class="t-comment">/// Every hash must be correct, meet the difficulty, and point at the block before it.</span>
+    <span class="t-kw">fn</span> validate(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">Result</span>&lt;(), <span class="t-ty">String</span>&gt; {
+        <span class="t-kw">let</span> target = <span class="t-string">&quot;0&quot;</span>.repeat(<span class="t-kw">self</span>.difficulty);
+        <span class="t-kw">for</span> (i, b) <span class="t-kw">in</span> <span class="t-kw">self</span>.blocks.iter().enumerate() {
+            <span class="t-kw">if</span> b.hash != b.compute_hash() {
+                <span class="t-kw">return</span> <span class="t-ty">Err</span>(<span class="t-macro">format!</span>(<span class="t-string">&quot;block {i}: hash doesn&#x27;t match its contents&quot;</span>));
+            }
+            <span class="t-kw">if</span> !b.hash.starts_with(&amp;target) {
+                <span class="t-kw">return</span> <span class="t-ty">Err</span>(<span class="t-macro">format!</span>(<span class="t-string">&quot;block {i}: not mined to difficulty {}&quot;</span>, <span class="t-kw">self</span>.difficulty));
+            }
+            <span class="t-kw">if</span> i &gt; <span class="t-number">0</span> &amp;&amp; b.prev_hash != <span class="t-kw">self</span>.blocks[i - <span class="t-number">1</span>].hash {
+                <span class="t-kw">return</span> <span class="t-ty">Err</span>(<span class="t-macro">format!</span>(<span class="t-string">&quot;block {i}: broken link to block {}&quot;</span>, i - <span class="t-number">1</span>));
+            }
+        }
+        <span class="t-ty">Ok</span>(())
+    }
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> chain = <span class="t-ty">Chain</span>::new(<span class="t-number">4</span>);
+    <span class="t-kw">for</span> data <span class="t-kw">in</span> [<span class="t-string">&quot;Alice pays Bob 5&quot;</span>, <span class="t-string">&quot;Bob pays Carol 2&quot;</span>] {
+        <span class="t-kw">let</span> b = chain.add(data);
+        <span class="t-macro">println!</span>(<span class="t-string">&quot;mined block {} with nonce {:&gt;6}: {}&quot;</span>, b.index, b.nonce, b.hash);
+    }
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;valid: {:?}&quot;</span>, chain.validate());
+
+    chain.blocks[<span class="t-number">1</span>].data = <span class="t-string">&quot;Alice pays Bob 500&quot;</span>.into(); <span class="t-comment">// tamper</span>
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;after tampering: {:?}&quot;</span>, chain.validate());
+
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;{}&quot;</span>, serde_json::to_string_pretty(&amp;chain.blocks[<span class="t-number">0</span>]).unwrap());
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> a_fresh_chain_is_valid() {
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> c = <span class="t-ty">Chain</span>::new(<span class="t-number">2</span>);
+        c.add(<span class="t-string">&quot;a&quot;</span>);
+        c.add(<span class="t-string">&quot;b&quot;</span>);
+        <span class="t-macro">assert_eq!</span>(c.validate(), <span class="t-ty">Ok</span>(()));
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> tampering_is_detected() {
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> c = <span class="t-ty">Chain</span>::new(<span class="t-number">2</span>);
+        c.add(<span class="t-string">&quot;a&quot;</span>);
+        c.blocks[<span class="t-number">1</span>].data = <span class="t-string">&quot;z&quot;</span>.into();
+        <span class="t-macro">assert!</span>(c.validate().unwrap_err().contains(<span class="t-string">&quot;block 1&quot;</span>));
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> relinking_is_detected() {
+        <span class="t-kw">let</span> <span class="t-kw">mut</span> c = <span class="t-ty">Chain</span>::new(<span class="t-number">2</span>);
+        c.add(<span class="t-string">&quot;a&quot;</span>);
+        c.add(<span class="t-string">&quot;b&quot;</span>);
+        c.blocks.remove(<span class="t-number">1</span>);
+        <span class="t-macro">assert!</span>(c.validate().is_err());
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>mined block 1 with nonce  11398: 0000a7cb8b69c636d59014905c7aed0c3484aae599968bccb0ec07d2e4436f52
+mined block 2 with nonce  80558: 000070c97a52839961be04e883699ebbe9ad63082755c62ac324dd0f03446d7a
+valid: Ok(())
+after tampering: Err(&quot;block 1: hash doesn&#x27;t match its contents&quot;)
+{
+  &quot;index&quot;: 0,
+  &quot;timestamp&quot;: 1793377528,
+  &quot;data&quot;: &quot;genesis&quot;,
+  &quot;prev_hash&quot;: &quot;0&quot;,
+  &quot;nonce&quot;: 48117,
+  &quot;hash&quot;: &quot;00001a6df7cf7fc21e792680b2bd89fbe15d3ff377a34cda662feeb12a7f59f2&quot;
+}
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. Timestamps, nonces and hashes differ on every run.</p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="12-signatures.html"><span>Previous</span>12 · Digital signatures</a>
+    <a class="next" href="course.html"><span>Finished</span>Back to the course</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

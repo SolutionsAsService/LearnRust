@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 · Ownership, moves and borrows — LearnRust</title>
+<meta name="description" content="Every value has one owner. Learn when a value moves, when it is borrowed, and what the compiler says when you get it wrong.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">02</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 02 of 13</p>
+      <h1>Ownership, moves and borrows</h1>
+      <p class="lede">Every value has one owner. Learn when a value moves, when it is borrowed, and what the compiler says when you get it wrong.</p>
+      <ul class="chips" aria-label="Concepts"><li>ownership</li><li>move</li><li>borrow (&amp;)</li><li>clone</li><li>slices</li><li>lifetimes</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 56 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/02-ownership">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>Three small text functions: one borrows, one returns a slice of its input, one takes ownership.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-02-ownership
+cargo test -p lesson-02-ownership</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>A <code>String</code> has exactly one owner. <code>let t = s;</code> <strong>moves</strong> it: <code>s</code> can no longer be used.</li><li><code>&amp;s</code> lends the value without moving it. Many shared borrows can exist at once.</li><li><code>.clone()</code> makes a second, independent copy when two owners really are needed.</li><li><code>longest_word</code> returns a <code>&amp;str</code> that points into its input. The lifetime <code>&#x27;a</code> tells the compiler the result can&#x27;t outlive the text it came from.</li></ul>
+<p>Try uncommenting a use of <code>s</code> after <code>shout(s)</code>. The compiler stops you with:</p>
+<div class="snippet"><pre class="lang-text"><code>error[E0382]: borrow of moved value: `s`</code></pre></div>
+<p>That error is the borrow checker doing its job: it found a use-after-move before the program ever ran.</p>
+<h2 id="try-this">Try this</h2>
+<ol><li>Change <code>shout</code> to take <code>&amp;mut String</code> and modify the text in place. What changes at the call site?</li><li>Write <code>first_word(text: &amp;str) -&gt; &amp;str</code>.</li><li>Return a <code>String</code> from <code>longest_word</code> instead of a slice. What does it cost?</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 02: ownership, moves and borrows.</span>
+
+<span class="t-comment">/// Count words by *borrowing* the text: the caller keeps ownership.</span>
+<span class="t-kw">fn</span> word_count(text: &amp;str) -&gt; usize {
+    text.split_whitespace().count()
+}
+
+<span class="t-comment">/// Return a slice of the input. The lifetime `&#x27;a` says the result lives as long as `text`.</span>
+<span class="t-kw">fn</span> longest_word&lt;<span class="t-lifetime">&#x27;a</span>&gt;(text: &amp;<span class="t-lifetime">&#x27;a</span> str) -&gt; &amp;<span class="t-lifetime">&#x27;a</span> str {
+    text.split_whitespace().fold(<span class="t-string">&quot;&quot;</span>, |best, w| <span class="t-kw">if</span> w.len() &gt; best.len() { w } <span class="t-kw">else</span> { best })
+}
+
+<span class="t-comment">/// Take ownership and give back a new String: the original is consumed.</span>
+<span class="t-kw">fn</span> shout(<span class="t-kw">mut</span> text: <span class="t-ty">String</span>) -&gt; <span class="t-ty">String</span> {
+    text.make_ascii_uppercase();
+    text.push(<span class="t-char">&#x27;!&#x27;</span>);
+    text
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> s = <span class="t-ty">String</span>::from(<span class="t-string">&quot;ownership is the heart of rust&quot;</span>);
+
+    <span class="t-comment">// Borrow: `s` is still usable afterwards.</span>
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;{} words, longest is {:?}&quot;</span>, word_count(&amp;s), longest_word(&amp;s));
+
+    <span class="t-comment">// Clone when you really need two owners of the data.</span>
+    <span class="t-kw">let</span> copy = s.clone();
+
+    <span class="t-comment">// Move: `s` is given away. Using `s` after this line will not compile:</span>
+    <span class="t-comment">// error[E0382]: borrow of moved value: `s`</span>
+    <span class="t-kw">let</span> loud = shout(s);
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;{loud}&quot;</span>);
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;the clone still works: {copy}&quot;</span>);
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> counts_words() {
+        <span class="t-macro">assert_eq!</span>(word_count(<span class="t-string">&quot;one two  three&quot;</span>), <span class="t-number">3</span>);
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> finds_longest_and_keeps_the_owner() {
+        <span class="t-kw">let</span> text = <span class="t-ty">String</span>::from(<span class="t-string">&quot;a borrow is fine&quot;</span>);
+        <span class="t-macro">assert_eq!</span>(longest_word(&amp;text), <span class="t-string">&quot;borrow&quot;</span>);
+        <span class="t-macro">assert_eq!</span>(text.len(), <span class="t-number">16</span>); <span class="t-comment">// still ours</span>
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> shout_consumes_and_returns() {
+        <span class="t-macro">assert_eq!</span>(shout(<span class="t-string">&quot;hi&quot;</span>.to_string()), <span class="t-string">&quot;HI!&quot;</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>6 words, longest is &quot;ownership&quot;
+OWNERSHIP IS THE HEART OF RUST!
+the clone still works: ownership is the heart of rust
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="01-hello-cargo.html"><span>Previous</span>01 · Hello, Cargo</a>
+    <a class="next" href="03-structs-enums.html"><span>Next</span>03 · Structs, enums and match</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

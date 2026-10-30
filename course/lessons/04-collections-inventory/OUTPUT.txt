@@ -1,0 +1,14 @@
+Commands: add <title> | <author> | <copies>, sell <title>, list, exit
+> list
+The Rust Programming Language            Klabnik & Nichols      3
+> add Dune | Frank Herbert | 2
+> sell dune
+sold one, 1 left
+> sell Dune
+sold one, 0 left
+> sell Dune
+out of stock
+> list
+Dune                                     Frank Herbert          0
+The Rust Programming Language            Klabnik & Nichols      3
+> exit

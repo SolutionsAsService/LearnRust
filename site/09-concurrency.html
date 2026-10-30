@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 · Fearless concurrency — LearnRust</title>
+<meta name="description" content="Split work across threads, pass results over channels, and share a map safely with Arc and Mutex.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">09</p>
+    <div>
+      <p class="kicker"><a href="course.html#systems">Systems</a> · Lesson 09 of 13</p>
+      <h1>Fearless concurrency</h1>
+      <p class="lede">Split work across threads, pass results over channels, and share a map safely with Arc and Mutex.</p>
+      <ul class="chips" aria-label="Concepts"><li>thread::scope</li><li>thread::spawn</li><li>mpsc channels</li><li>Arc</li><li>Mutex</li><li>Send/Sync</li></ul>
+      <p class="proof"><span class="ok">✓ 2 passing tests</span> · 68 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/09-concurrency">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A parallel sum of a million numbers, and a word counter where several threads update one shared map.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-09-concurrency
+cargo test -p lesson-09-concurrency</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li><code>thread::scope</code> lets threads borrow <code>numbers</code> safely, because they&#x27;re guaranteed to finish before the scope ends.</li><li>A channel (<code>mpsc</code>) moves values between threads; dropping every sender ends the receiver&#x27;s loop.</li><li><code>Arc</code> shares ownership across threads; <code>Mutex</code> makes sure only one thread changes the map at a time.</li><li>Forget the <code>Mutex</code> and the program doesn&#x27;t compile. Data races are compile errors in safe Rust, which is what &quot;fearless concurrency&quot; means.</li></ul>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 02: why must the closure passed to <code>thread::spawn</code> be <code>move</code>? What would it borrow otherwise?</li><li>Time <code>parallel_sum</code> with 1, 2, 4 and 8 workers (<code>std::time::Instant</code>).</li><li>Replace the shared map with per-thread maps merged at the end. Which is faster?</li><li>Remove <code>Arc::clone</code> and read the compiler error.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 09: fearless concurrency: threads, channels and shared state.</span>
+
+<span class="t-kw">use</span> std::collections::<span class="t-ty">HashMap</span>;
+<span class="t-kw">use</span> std::sync::{mpsc, <span class="t-ty">Arc</span>, <span class="t-ty">Mutex</span>};
+<span class="t-kw">use</span> std::thread;
+
+<span class="t-comment">/// Sum a big slice by splitting it across threads and sending partial sums over a channel.</span>
+<span class="t-kw">fn</span> parallel_sum(numbers: &amp;[u64], workers: usize) -&gt; u64 {
+    <span class="t-kw">let</span> (tx, rx) = mpsc::channel();
+    <span class="t-kw">let</span> chunk = numbers.len().div_ceil(workers.max(<span class="t-number">1</span>)).max(<span class="t-number">1</span>);
+    thread::scope(|s| {
+        <span class="t-kw">for</span> part <span class="t-kw">in</span> numbers.chunks(chunk) {
+            <span class="t-kw">let</span> tx = tx.clone();
+            s.spawn(<span class="t-kw">move</span> || tx.send(part.iter().sum::&lt;u64&gt;()).unwrap());
+        }
+    });
+    drop(tx); <span class="t-comment">// close the channel so the receiver&#x27;s iterator ends</span>
+    rx.iter().sum()
+}
+
+<span class="t-comment">/// Count words across documents with threads sharing one map behind Arc&lt;Mutex&lt;_&gt;&gt;.</span>
+<span class="t-kw">fn</span> word_counts(docs: <span class="t-ty">Vec</span>&lt;<span class="t-ty">String</span>&gt;) -&gt; <span class="t-ty">HashMap</span>&lt;<span class="t-ty">String</span>, usize&gt; {
+    <span class="t-kw">let</span> counts = <span class="t-ty">Arc</span>::new(<span class="t-ty">Mutex</span>::new(<span class="t-ty">HashMap</span>::new()));
+    <span class="t-kw">let</span> handles: <span class="t-ty">Vec</span>&lt;_&gt; = docs
+        .into_iter()
+        .map(|doc| {
+            <span class="t-kw">let</span> counts = <span class="t-ty">Arc</span>::clone(&amp;counts);
+            thread::spawn(<span class="t-kw">move</span> || {
+                <span class="t-kw">for</span> word <span class="t-kw">in</span> doc.split_whitespace() {
+                    *counts.lock().unwrap().entry(word.to_lowercase()).or_insert(<span class="t-number">0</span>) += <span class="t-number">1</span>;
+                }
+            })
+        })
+        .collect();
+    <span class="t-kw">for</span> h <span class="t-kw">in</span> handles {
+        h.join().unwrap();
+    }
+    <span class="t-ty">Arc</span>::try_unwrap(counts).unwrap().into_inner().unwrap()
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> numbers: <span class="t-ty">Vec</span>&lt;u64&gt; = (<span class="t-number">1</span>..=<span class="t-number">1_000_000</span>).collect();
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;sum = {}&quot;</span>, parallel_sum(&amp;numbers, <span class="t-number">8</span>));
+
+    <span class="t-kw">let</span> counts = word_counts(<span class="t-macro">vec!</span>[<span class="t-string">&quot;the cat sat&quot;</span>.into(), <span class="t-string">&quot;The dog sat&quot;</span>.into(), <span class="t-string">&quot;a cat&quot;</span>.into()]);
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> top: <span class="t-ty">Vec</span>&lt;_&gt; = counts.into_iter().collect();
+    top.sort_by(|a, b| b.<span class="t-number">1</span>.cmp(&amp;a.<span class="t-number">1</span>).then(a.<span class="t-number">0</span>.cmp(&amp;b.<span class="t-number">0</span>)));
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;top words: {:?}&quot;</span>, &amp;top[..<span class="t-number">3</span>]);
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> parallel_sum_matches_the_formula() {
+        <span class="t-kw">let</span> n: u64 = <span class="t-number">10_000</span>;
+        <span class="t-kw">let</span> v: <span class="t-ty">Vec</span>&lt;u64&gt; = (<span class="t-number">1</span>..=n).collect();
+        <span class="t-macro">assert_eq!</span>(parallel_sum(&amp;v, <span class="t-number">7</span>), n * (n + <span class="t-number">1</span>) / <span class="t-number">2</span>);
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> words_are_counted_across_threads() {
+        <span class="t-kw">let</span> m = word_counts(<span class="t-macro">vec!</span>[<span class="t-string">&quot;a b&quot;</span>.into(), <span class="t-string">&quot;A&quot;</span>.into()]);
+        <span class="t-macro">assert_eq!</span>(m[<span class="t-string">&quot;a&quot;</span>], <span class="t-number">2</span>);
+        <span class="t-macro">assert_eq!</span>(m[<span class="t-string">&quot;b&quot;</span>], <span class="t-number">1</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>sum = 500000500000
+top words: [(&quot;cat&quot;, 2), (&quot;sat&quot;, 2), (&quot;the&quot;, 2)]
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. Ties in the word list can come out in either order.</p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="08-modules-testing.html"><span>Previous</span>08 · Modules and testing</a>
+    <a class="next" href="10-tcp-echo.html"><span>Next</span>10 · A TCP echo server</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

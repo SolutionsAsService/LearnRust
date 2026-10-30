@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 · Traits and generics — LearnRust</title>
+<meta name="description" content="Share behaviour across types with traits, write one function for many types with generics, and mix types with trait objects.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">06</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 06 of 13</p>
+      <h1>Traits and generics</h1>
+      <p class="lede">Share behaviour across types with traits, write one function for many types with generics, and mix types with trait objects.</p>
+      <ul class="chips" aria-label="Concepts"><li>trait</li><li>default methods</li><li>impl Trait for</li><li>generics</li><li>trait bounds</li><li>Box&lt;dyn Trait&gt;</li></ul>
+      <p class="proof"><span class="ok">✓ 2 passing tests</span> · 80 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/06-traits-generics">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A shelf of books and films that all know how to describe themselves, plus a generic <code>largest</code> that works on any comparable list.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-06-traits-generics
+cargo test -p lesson-06-traits-generics</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>A <strong>trait</strong> is a set of methods a type promises to have. <code>describe</code> has a default body; <code>Book</code> overrides it, <code>Film</code> doesn&#x27;t.</li><li><code>largest&lt;T: PartialOrd + Copy&gt;</code> is written once and compiled for each type you call it with (static dispatch).</li><li><code>Vec&lt;Box&lt;dyn Describe&gt;&gt;</code> holds different types side by side and calls the right method at run time (dynamic dispatch).</li><li>Returning <code>Option&lt;T&gt;</code> makes &quot;the list was empty&quot; a value, not a crash.</li></ul>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 05: make <code>largest</code> return <code>Result&lt;T, &amp;&#x27;static str&gt;</code> instead of <code>Option&lt;T&gt;</code>. Which do you prefer, and why?</li><li>Add a <code>Podcast</code> type and put it on the shelf.</li><li>Implement <code>std::fmt::Display</code> for <code>Book</code> so <code>println!(&quot;{book}&quot;)</code> works.</li><li>Make <code>largest</code> return a reference instead of requiring <code>Copy</code>.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 06: traits, generics and trait objects.</span>
+
+<span class="t-kw">trait</span> <span class="t-ty">Describe</span> {
+    <span class="t-kw">fn</span> title(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">String</span>;
+
+    <span class="t-comment">/// A default method: types get it for free and may override it.</span>
+    <span class="t-kw">fn</span> describe(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">String</span> {
+        <span class="t-macro">format!</span>(<span class="t-string">&quot;[{}]&quot;</span>, <span class="t-kw">self</span>.title())
+    }
+}
+
+<span class="t-kw">struct</span> <span class="t-ty">Book</span> {
+    name: <span class="t-ty">String</span>,
+    pages: u32,
+}
+
+<span class="t-kw">struct</span> <span class="t-ty">Film</span> {
+    name: <span class="t-ty">String</span>,
+    minutes: u32,
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Describe</span> <span class="t-kw">for</span> <span class="t-ty">Book</span> {
+    <span class="t-kw">fn</span> title(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">String</span> {
+        <span class="t-kw">self</span>.name.clone()
+    }
+    <span class="t-kw">fn</span> describe(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">String</span> {
+        <span class="t-macro">format!</span>(<span class="t-string">&quot;{} ({} pages)&quot;</span>, <span class="t-kw">self</span>.name, <span class="t-kw">self</span>.pages)
+    }
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Describe</span> <span class="t-kw">for</span> <span class="t-ty">Film</span> {
+    <span class="t-kw">fn</span> title(&amp;<span class="t-kw">self</span>) -&gt; <span class="t-ty">String</span> {
+        <span class="t-kw">self</span>.name.clone()
+    }
+}
+
+<span class="t-comment">/// Generic over any type that can be compared and copied.</span>
+<span class="t-kw">fn</span> largest&lt;<span class="t-ty">T</span>: <span class="t-ty">PartialOrd</span> + <span class="t-ty">Copy</span>&gt;(items: &amp;[<span class="t-ty">T</span>]) -&gt; <span class="t-ty">Option</span>&lt;<span class="t-ty">T</span>&gt; {
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> iter = items.iter().copied();
+    <span class="t-kw">let</span> first = iter.next()?;
+    <span class="t-ty">Some</span>(iter.fold(first, |a, b| <span class="t-kw">if</span> b &gt; a { b } <span class="t-kw">else</span> { a }))
+}
+
+<span class="t-comment">/// Static dispatch: compiled once per concrete type.</span>
+<span class="t-kw">fn</span> shout&lt;<span class="t-ty">T</span>: <span class="t-ty">Describe</span>&gt;(item: &amp;<span class="t-ty">T</span>) -&gt; <span class="t-ty">String</span> {
+    item.describe().to_uppercase()
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-comment">// Dynamic dispatch: one Vec of different types behind `dyn Describe`.</span>
+    <span class="t-kw">let</span> shelf: <span class="t-ty">Vec</span>&lt;<span class="t-ty">Box</span>&lt;<span class="t-kw">dyn</span> <span class="t-ty">Describe</span>&gt;&gt; = <span class="t-macro">vec!</span>[
+        <span class="t-ty">Box</span>::new(<span class="t-ty">Book</span> { name: <span class="t-string">&quot;Rust in Action&quot;</span>.into(), pages: <span class="t-number">456</span> }),
+        <span class="t-ty">Box</span>::new(<span class="t-ty">Film</span> { name: <span class="t-string">&quot;Hackers&quot;</span>.into(), minutes: <span class="t-number">105</span> }),
+    ];
+    <span class="t-kw">for</span> item <span class="t-kw">in</span> &amp;shelf {
+        <span class="t-macro">println!</span>(<span class="t-string">&quot;{}&quot;</span>, item.describe());
+    }
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;{}&quot;</span>, shout(&amp;<span class="t-ty">Book</span> { name: <span class="t-string">&quot;Zero to Production&quot;</span>.into(), pages: <span class="t-number">500</span> }));
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;largest: {:?} {:?}&quot;</span>, largest(&amp;[<span class="t-number">3</span>, <span class="t-number">9</span>, <span class="t-number">2</span>]), largest(&amp;[<span class="t-number">1.5</span>, -<span class="t-number">2.0</span>]));
+    <span class="t-kw">let</span> film = <span class="t-ty">Film</span> { name: <span class="t-string">&quot;Sneakers&quot;</span>.into(), minutes: <span class="t-number">126</span> };
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;{} runs {} minutes&quot;</span>, film.title(), film.minutes);
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> largest_works_for_ints_floats_and_empty() {
+        <span class="t-macro">assert_eq!</span>(largest(&amp;[<span class="t-number">1</span>, <span class="t-number">5</span>, <span class="t-number">3</span>]), <span class="t-ty">Some</span>(<span class="t-number">5</span>));
+        <span class="t-macro">assert_eq!</span>(largest(&amp;[<span class="t-number">0.5</span>, <span class="t-number">0.25</span>]), <span class="t-ty">Some</span>(<span class="t-number">0.5</span>));
+        <span class="t-macro">assert_eq!</span>(largest::&lt;i32&gt;(&amp;[]), <span class="t-ty">None</span>);
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> default_and_overridden_methods() {
+        <span class="t-macro">assert_eq!</span>(<span class="t-ty">Film</span> { name: <span class="t-string">&quot;X&quot;</span>.into(), minutes: <span class="t-number">1</span> }.describe(), <span class="t-string">&quot;[X]&quot;</span>);
+        <span class="t-macro">assert_eq!</span>(<span class="t-ty">Book</span> { name: <span class="t-string">&quot;Y&quot;</span>.into(), pages: <span class="t-number">2</span> }.describe(), <span class="t-string">&quot;Y (2 pages)&quot;</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>Rust in Action (456 pages)
+[Hackers]
+ZERO TO PRODUCTION (500 PAGES)
+largest: Some(9) Some(1.5)
+Sneakers runs 126 minutes
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="05-error-handling.html"><span>Previous</span>05 · Error handling with Result</a>
+    <a class="next" href="07-iterators-closures.html"><span>Next</span>07 · Iterators and closures</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

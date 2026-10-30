@@ -1,0 +1,3 @@
+levels: [("ERROR", 2), ("INFO", 4), ("WARN", 2)]
+slow requests: [912, 1204], average 1058 ms
+5 lines longer than 25 characters

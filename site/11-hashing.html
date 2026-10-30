@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 · Hashing with SHA-256 — LearnRust</title>
+<meta name="description" content="Use your first crate, hash text and files, check against a published test vector, and see the avalanche effect.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">11</p>
+    <div>
+      <p class="kicker"><a href="course.html#cryptography">Cryptography</a> · Lesson 11 of 13</p>
+      <h1>Hashing with SHA-256</h1>
+      <p class="lede">Use your first crate, hash text and files, check against a published test vector, and see the avalanche effect.</p>
+      <ul class="chips" aria-label="Concepts"><li>crates.io dependencies</li><li>sha2</li><li>traits from crates (Digest)</li><li>io::copy</li><li>hex formatting</li></ul>
+      <p class="proof"><span class="ok">✓ 2 passing tests</span> · 52 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/11-hashing">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A command-line hasher: <code>cargo run -p lesson-11-hashing -- &lt;file&gt;</code> prints the file&#x27;s SHA-256; with no argument it shows how one changed letter changes the whole hash.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-11-hashing
+cargo run -p lesson-11-hashing -- Cargo.toml
+cargo test -p lesson-11-hashing</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li><code>sha2 = &quot;0.10&quot;</code> in <code>Cargo.toml</code> pulls the crate from crates.io; <code>cargo</code> downloads and builds it.</li><li><code>Sha256</code> implements <code>Write</code>, so <code>io::copy</code> can stream a file of any size through it.</li><li><code>{b:02x}</code> prints each byte as two hex digits.</li><li>The test checks the published FIPS 180-2 vector for <code>&quot;abc&quot;</code>, so you know the hashing is right, not just consistent.</li></ul>
+<h2 id="where-this-came-from">Where this came from</h2>
+<p>The original <code>Cyber/HashGen</code> had the code but no Cargo project, so it couldn&#x27;t be built as committed. Here it&#x27;s a full crate with tests.</p>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 07: hash every line of a file and print only the hashes that start with <code>00</code>, using one iterator chain.</li><li>Hash every file in a folder and print the results sorted by name.</li><li>Add a <code>--check &lt;hash&gt;</code> flag that says whether a file matches.</li><li>Compare SHA-256 and SHA-512 output lengths.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 11: SHA-256 hashing of text and files.</span>
+<span class="t-comment">//! Grown from the repository&#x27;s original `Cyber/HashGen/Main.rs`.</span>
+
+<span class="t-kw">use</span> sha2::{<span class="t-ty">Digest</span>, <span class="t-ty">Sha256</span>};
+<span class="t-kw">use</span> std::{env, fs, io};
+
+<span class="t-comment">/// Hex-encode a SHA-256 digest of some bytes.</span>
+<span class="t-kw">fn</span> sha256_hex(data: &amp;[u8]) -&gt; <span class="t-ty">String</span> {
+    <span class="t-kw">let</span> digest = <span class="t-ty">Sha256</span>::digest(data);
+    digest.iter().map(|b| <span class="t-macro">format!</span>(<span class="t-string">&quot;{b:02x}&quot;</span>)).collect()
+}
+
+<span class="t-comment">/// Hash a file without reading it all into memory.</span>
+<span class="t-kw">fn</span> sha256_file(path: &amp;str) -&gt; io::<span class="t-ty">Result</span>&lt;<span class="t-ty">String</span>&gt; {
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> hasher = <span class="t-ty">Sha256</span>::new();
+    <span class="t-kw">let</span> <span class="t-kw">mut</span> file = fs::<span class="t-ty">File</span>::open(path)?;
+    io::copy(&amp;<span class="t-kw">mut</span> file, &amp;<span class="t-kw">mut</span> hasher)?;
+    <span class="t-ty">Ok</span>(hasher.finalize().iter().map(|b| <span class="t-macro">format!</span>(<span class="t-string">&quot;{b:02x}&quot;</span>)).collect())
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">match</span> env::args().nth(<span class="t-number">1</span>) {
+        <span class="t-ty">Some</span>(path) =&gt; <span class="t-kw">match</span> sha256_file(&amp;path) {
+            <span class="t-ty">Ok</span>(h) =&gt; <span class="t-macro">println!</span>(<span class="t-string">&quot;{h}  {path}&quot;</span>),
+            <span class="t-ty">Err</span>(e) =&gt; <span class="t-macro">eprintln!</span>(<span class="t-string">&quot;{path}: {e}&quot;</span>),
+        },
+        <span class="t-ty">None</span> =&gt; {
+            <span class="t-kw">for</span> text <span class="t-kw">in</span> [<span class="t-string">&quot;Rust Blockchain Data&quot;</span>, <span class="t-string">&quot;Rust Blockchain Datb&quot;</span>] {
+                <span class="t-macro">println!</span>(<span class="t-string">&quot;{}  {text:?}&quot;</span>, sha256_hex(text.as_bytes()));
+            }
+            <span class="t-macro">println!</span>(<span class="t-string">&quot;(one changed letter, a completely different hash: the avalanche effect)&quot;</span>);
+        }
+    }
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> matches_the_published_test_vector() {
+        <span class="t-comment">// FIPS 180-2 test vector for &quot;abc&quot;</span>
+        <span class="t-macro">assert_eq!</span>(sha256_hex(<span class="t-string">b&quot;abc&quot;</span>), <span class="t-string">&quot;ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad&quot;</span>);
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> file_and_bytes_agree() {
+        <span class="t-kw">let</span> path = std::env::temp_dir().join(<span class="t-string">&quot;learnrust-hash-test.txt&quot;</span>);
+        std::fs::write(&amp;path, <span class="t-string">b&quot;abc&quot;</span>).unwrap();
+        <span class="t-macro">assert_eq!</span>(sha256_file(path.to_str().unwrap()).unwrap(), sha256_hex(<span class="t-string">b&quot;abc&quot;</span>));
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>b0b103eec8442270e39e04582c5381e2c229608b8f6e78237a9fc64f9b7ff452  &quot;Rust Blockchain Data&quot;
+6b38fbf00151a520c8f6aa47addfcc4095c4b15a37912790e2a3cb205d52a752  &quot;Rust Blockchain Datb&quot;
+(one changed letter, a completely different hash: the avalanche effect)
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="10-tcp-echo.html"><span>Previous</span>10 · A TCP echo server</a>
+    <a class="next" href="12-signatures.html"><span>Next</span>12 · Digital signatures</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

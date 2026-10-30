@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 · Structs, enums and match — LearnRust</title>
+<meta name="description" content="Model data with structs and enums, attach behaviour with impl, and let match prove you handled every case.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">03</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 03 of 13</p>
+      <h1>Structs, enums and match</h1>
+      <p class="lede">Model data with structs and enums, attach behaviour with impl, and let match prove you handled every case.</p>
+      <ul class="chips" aria-label="Concepts"><li>struct</li><li>enum</li><li>impl</li><li>match</li><li>derive</li><li>&amp;&#x27;static str</li></ul>
+      <p class="proof"><span class="ok">✓ 3 passing tests</span> · 78 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/03-structs-enums">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>Points and shapes: a <code>Point</code> struct with a distance method, and a <code>Shape</code> enum whose variants each carry their own measurements.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-03-structs-enums
+cargo test -p lesson-03-structs-enums</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li>A <code>struct</code> groups named fields; <code>impl</code> adds methods. <code>self</code> (by value) works here because <code>Point</code> is <code>Copy</code>.</li><li>An <code>enum</code> lists every shape a value can take, and each variant can hold different data.</li><li><code>match</code> is exhaustive: add a <code>Hexagon</code> variant and the compiler lists every <code>match</code> you forgot to update.</li><li><code>#[derive(Debug)]</code> gives you <code>{:?}</code> printing for free.</li></ul>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 02: why can <code>distance_to</code> take <code>self</code> by value and still let you use <code>origin</code> afterwards? (Hint: <code>Copy</code>.)</li><li>Add <code>Shape::Square { side: f64 }</code> and follow the compiler errors until it builds.</li><li>Add a <code>perimeter</code> method.</li><li>Sort the shapes by area (hint: <code>sort_by</code> with <code>partial_cmp</code>).</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-comment">//! Lesson 03: structs, enums and `match`.</span>
+
+<span class="t-attr">#[derive(Debug, Clone, Copy, PartialEq)]</span>
+<span class="t-kw">struct</span> <span class="t-ty">Point</span> {
+    x: f64,
+    y: f64,
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Point</span> {
+    <span class="t-kw">fn</span> distance_to(<span class="t-kw">self</span>, other: <span class="t-ty">Point</span>) -&gt; f64 {
+        ((<span class="t-kw">self</span>.x - other.x).powi(<span class="t-number">2</span>) + (<span class="t-kw">self</span>.y - other.y).powi(<span class="t-number">2</span>)).sqrt()
+    }
+}
+
+<span class="t-comment">/// Each variant carries its own data.</span>
+<span class="t-attr">#[derive(Debug)]</span>
+<span class="t-kw">enum</span> <span class="t-ty">Shape</span> {
+    <span class="t-ty">Circle</span> { radius: f64 },
+    <span class="t-ty">Rectangle</span> { width: f64, height: f64 },
+    <span class="t-ty">Triangle</span> { a: f64, b: f64, c: f64 },
+}
+
+<span class="t-kw">impl</span> <span class="t-ty">Shape</span> {
+    <span class="t-kw">fn</span> area(&amp;<span class="t-kw">self</span>) -&gt; f64 {
+        <span class="t-comment">// `match` must cover every variant, or the program won&#x27;t compile.</span>
+        <span class="t-kw">match</span> <span class="t-kw">self</span> {
+            <span class="t-ty">Shape</span>::<span class="t-ty">Circle</span> { radius } =&gt; std::f64::consts::<span class="t-ty">PI</span> * radius * radius,
+            <span class="t-ty">Shape</span>::<span class="t-ty">Rectangle</span> { width, height } =&gt; width * height,
+            <span class="t-ty">Shape</span>::<span class="t-ty">Triangle</span> { a, b, c } =&gt; {
+                <span class="t-kw">let</span> s = (a + b + c) / <span class="t-number">2.0</span>; <span class="t-comment">// Heron&#x27;s formula</span>
+                (s * (s - a) * (s - b) * (s - c)).sqrt()
+            }
+        }
+    }
+
+    <span class="t-kw">fn</span> name(&amp;<span class="t-kw">self</span>) -&gt; &amp;<span class="t-lifetime">&#x27;static</span> str {
+        <span class="t-kw">match</span> <span class="t-kw">self</span> {
+            <span class="t-ty">Shape</span>::<span class="t-ty">Circle</span> { .. } =&gt; <span class="t-string">&quot;circle&quot;</span>,
+            <span class="t-ty">Shape</span>::<span class="t-ty">Rectangle</span> { .. } =&gt; <span class="t-string">&quot;rectangle&quot;</span>,
+            <span class="t-ty">Shape</span>::<span class="t-ty">Triangle</span> { .. } =&gt; <span class="t-string">&quot;triangle&quot;</span>,
+        }
+    }
+}
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">let</span> shapes = [
+        <span class="t-ty">Shape</span>::<span class="t-ty">Circle</span> { radius: <span class="t-number">1.5</span> },
+        <span class="t-ty">Shape</span>::<span class="t-ty">Rectangle</span> { width: <span class="t-number">3.0</span>, height: <span class="t-number">4.0</span> },
+        <span class="t-ty">Shape</span>::<span class="t-ty">Triangle</span> { a: <span class="t-number">3.0</span>, b: <span class="t-number">4.0</span>, c: <span class="t-number">5.0</span> },
+    ];
+    <span class="t-kw">for</span> s <span class="t-kw">in</span> &amp;shapes {
+        <span class="t-macro">println!</span>(<span class="t-string">&quot;{:&lt;10} area {:&gt;7.3}&quot;</span>, s.name(), s.area());
+    }
+
+    <span class="t-kw">let</span> origin = <span class="t-ty">Point</span> { x: <span class="t-number">0.0</span>, y: <span class="t-number">0.0</span> };
+    <span class="t-kw">let</span> p = <span class="t-ty">Point</span> { x: <span class="t-number">3.0</span>, y: <span class="t-number">4.0</span> };
+    <span class="t-macro">println!</span>(<span class="t-string">&quot;distance from origin: {}&quot;</span>, origin.distance_to(p));
+}
+
+<span class="t-attr">#[cfg(test)]</span>
+<span class="t-kw">mod</span> tests {
+    <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> right_triangle_area() {
+        <span class="t-macro">assert!</span>((<span class="t-ty">Shape</span>::<span class="t-ty">Triangle</span> { a: <span class="t-number">3.0</span>, b: <span class="t-number">4.0</span>, c: <span class="t-number">5.0</span> }.area() - <span class="t-number">6.0</span>).abs() &lt; <span class="t-number">1e</span>-<span class="t-number">9</span>);
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> rectangle_area() {
+        <span class="t-macro">assert_eq!</span>(<span class="t-ty">Shape</span>::<span class="t-ty">Rectangle</span> { width: <span class="t-number">2.0</span>, height: <span class="t-number">5.0</span> }.area(), <span class="t-number">10.0</span>);
+    }
+
+    <span class="t-attr">#[test]</span>
+    <span class="t-kw">fn</span> distance_is_pythagorean() {
+        <span class="t-macro">assert_eq!</span>(<span class="t-ty">Point</span> { x: <span class="t-number">0.0</span>, y: <span class="t-number">0.0</span> }.distance_to(<span class="t-ty">Point</span> { x: <span class="t-number">3.0</span>, y: <span class="t-number">4.0</span> }), <span class="t-number">5.0</span>);
+    }
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>circle     area   7.069
+rectangle  area  12.000
+triangle   area   6.000
+distance from origin: 5
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="02-ownership.html"><span>Previous</span>02 · Ownership, moves and borrows</a>
+    <a class="next" href="04-collections-inventory.html"><span>Next</span>04 · Collections: a bookstore inventory</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

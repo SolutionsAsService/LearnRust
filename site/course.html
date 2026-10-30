@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The course — LearnRust</title>
+<meta name="description" content="13 Rust lessons in three tracks: foundations, systems and cryptography.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+<section class="page-head"><div class="wrap">
+  <p class="kicker">The course</p>
+  <h1>13 lessons, <em>three tracks.</em></h1>
+  <p class="lede">Each lesson is a small program you can run, read and break, with tests that pass on rustc 1.99.1. Do them in order, or jump to the track you need.</p>
+</div></section>
+<div class="wrap"><section class="track" id="foundations" aria-labelledby="t-foundations">
+  <div class="track-head"><h2 id="t-foundations">Foundations</h2><p>The language itself: ownership, types, errors, traits, iterators and tests.</p><p class="small">8 lessons · 24 tests</p></div>
+  <ol class="tags"><li class="tag"><a href="01-hello-cargo.html">
+  <span class="tag-n">01</span>
+  <span class="tag-body"><span class="tag-title">Hello, Cargo</span><span class="tag-sum">Create, run and test a Rust program with Cargo, Rust&#x27;s build tool and package manager.</span>
+  <span class="tag-meta">1 tests · 25 lines</span></span>
+</a></li><li class="tag"><a href="02-ownership.html">
+  <span class="tag-n">02</span>
+  <span class="tag-body"><span class="tag-title">Ownership, moves and borrows</span><span class="tag-sum">Every value has one owner. Learn when a value moves, when it is borrowed, and what the compiler says when you get it wrong.</span>
+  <span class="tag-meta">3 tests · 56 lines</span></span>
+</a></li><li class="tag"><a href="03-structs-enums.html">
+  <span class="tag-n">03</span>
+  <span class="tag-body"><span class="tag-title">Structs, enums and match</span><span class="tag-sum">Model data with structs and enums, attach behaviour with impl, and let match prove you handled every case.</span>
+  <span class="tag-meta">3 tests · 78 lines</span></span>
+</a></li><li class="tag"><a href="04-collections-inventory.html">
+  <span class="tag-n">04</span>
+  <span class="tag-body"><span class="tag-title">Collections: a bookstore inventory</span><span class="tag-sum">Keep records in a HashMap, return a Result instead of panicking, and keep the logic testable apart from input and output.</span>
+  <span class="tag-meta">3 tests · 117 lines</span></span>
+</a></li><li class="tag"><a href="05-error-handling.html">
+  <span class="tag-n">05</span>
+  <span class="tag-body"><span class="tag-title">Error handling with Result</span><span class="tag-sum">Parse a config file where every failure is a typed value with a line number, not a crash.</span>
+  <span class="tag-meta">3 tests · 85 lines</span></span>
+</a></li><li class="tag"><a href="06-traits-generics.html">
+  <span class="tag-n">06</span>
+  <span class="tag-body"><span class="tag-title">Traits and generics</span><span class="tag-sum">Share behaviour across types with traits, write one function for many types with generics, and mix types with trait objects.</span>
+  <span class="tag-meta">2 tests · 80 lines</span></span>
+</a></li><li class="tag"><a href="07-iterators-closures.html">
+  <span class="tag-n">07</span>
+  <span class="tag-body"><span class="tag-title">Iterators and closures</span><span class="tag-sum">Chain filter, map and fold into a small log analyser, and write closures that capture their surroundings.</span>
+  <span class="tag-meta">3 tests · 72 lines</span></span>
+</a></li><li class="tag"><a href="08-modules-testing.html">
+  <span class="tag-n">08</span>
+  <span class="tag-body"><span class="tag-title">Modules and testing</span><span class="tag-sum">Split code into modules and a library crate, control visibility, and test it three ways: unit, doc and integration tests.</span>
+  <span class="tag-meta">6 tests · 75 lines</span></span>
+</a></li></ol>
+</section><section class="track" id="systems" aria-labelledby="t-systems">
+  <div class="track-head"><h2 id="t-systems">Systems</h2><p>Programs that share work across threads and talk over the network.</p><p class="small">2 lessons · 3 tests</p></div>
+  <ol class="tags"><li class="tag"><a href="09-concurrency.html">
+  <span class="tag-n">09</span>
+  <span class="tag-body"><span class="tag-title">Fearless concurrency</span><span class="tag-sum">Split work across threads, pass results over channels, and share a map safely with Arc and Mutex.</span>
+  <span class="tag-meta">2 tests · 68 lines</span></span>
+</a></li><li class="tag"><a href="10-tcp-echo.html">
+  <span class="tag-n">10</span>
+  <span class="tag-body"><span class="tag-title">A TCP echo server</span><span class="tag-sum">Listen on a socket, serve each client on its own thread, handle disconnects and errors, and test it end to end.</span>
+  <span class="tag-meta">1 tests · 63 lines</span></span>
+</a></li></ol>
+</section><section class="track" id="cryptography" aria-labelledby="t-cryptography">
+  <div class="track-head"><h2 id="t-cryptography">Cryptography</h2><p>Hashes, signatures and a blockchain you can break on purpose.</p><p class="small">3 lessons · 8 tests</p></div>
+  <ol class="tags"><li class="tag"><a href="11-hashing.html">
+  <span class="tag-n">11</span>
+  <span class="tag-body"><span class="tag-title">Hashing with SHA-256</span><span class="tag-sum">Use your first crate, hash text and files, check against a published test vector, and see the avalanche effect.</span>
+  <span class="tag-meta">2 tests · 52 lines</span></span>
+</a></li><li class="tag"><a href="12-signatures.html">
+  <span class="tag-n">12</span>
+  <span class="tag-body"><span class="tag-title">Digital signatures</span><span class="tag-sum">Generate an Ed25519 key pair, sign a message, and prove that any change to the message, or the wrong key, fails verification.</span>
+  <span class="tag-meta">3 tests · 57 lines</span></span>
+</a></li><li class="tag"><a href="13-blockchain.html">
+  <span class="tag-n">13</span>
+  <span class="tag-body"><span class="tag-title">A toy blockchain</span><span class="tag-sum">Chain blocks by hash, mine them with proof of work, and write the validator that catches tampering.</span>
+  <span class="tag-meta">3 tests · 121 lines</span></span>
+</a></li></ol>
+</section></div>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>

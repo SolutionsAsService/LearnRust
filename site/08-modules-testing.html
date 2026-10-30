@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 · Modules and testing — LearnRust</title>
+<meta name="description" content="Split code into modules and a library crate, control visibility, and test it three ways: unit, doc and integration tests.">
+<meta name="theme-color" content="#16181b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="top-in">
+  <a class="brand" href="index.html" aria-label="LearnRust, home"><img src="favicon.svg" alt="" width="30" height="30"><span>Learn<b>Rust</b></span></a>
+  <nav aria-label="Main"><a href="course.html" aria-current="page">Course</a><a href="setup.html">Set up</a><a href="https://github.com/SolutionsAsService/LearnRust">GitHub</a></nav>
+</div></header>
+<main id="main">
+
+<article class="lesson">
+  <header class="lesson-head"><div class="wrap lesson-head-in">
+    <p class="stamp" aria-hidden="true">08</p>
+    <div>
+      <p class="kicker"><a href="course.html#foundations">Foundations</a> · Lesson 08 of 13</p>
+      <h1>Modules and testing</h1>
+      <p class="lede">Split code into modules and a library crate, control visibility, and test it three ways: unit, doc and integration tests.</p>
+      <ul class="chips" aria-label="Concepts"><li>mod</li><li>pub</li><li>pub(crate)</li><li>lib.rs + main.rs</li><li>doc tests</li><li>tests/ folder</li></ul>
+      <p class="proof"><span class="ok">✓ 6 passing tests</span> · 75 lines · <a href="https://github.com/SolutionsAsService/LearnRust/tree/main/course/lessons/08-modules-testing">source</a></p>
+    </div>
+  </div></header>
+  <div class="wrap lesson-grid">
+    <div class="prose"><h2 id="what-you-ll-build">What you&#x27;ll build</h2>
+<p>A small temperature library with a binary that uses it, and every kind of test Cargo supports.</p>
+<h2 id="run-it">Run it</h2><p class="where">Run these from the <code>course/</code> folder of the repository. First time? <a href="setup.html">Install Rust and get the course</a> (about ten minutes).</p>
+<div class="snippet"><pre class="lang-bash"><code>cargo run -p lesson-08-modules-testing
+cargo test -p lesson-08-modules-testing</code></pre> <button class="copy" type="button">Copy</button></div>
+<h2 id="how-it-works">How it works</h2>
+<ul><li><code>src/lib.rs</code> is a library crate; <code>src/main.rs</code> is a binary that uses it like any other dependency.</li><li><code>pub</code> exposes an item; <code>pub(crate)</code> keeps <code>describe</code> usable inside the crate but invisible outside.</li><li><strong>Unit tests</strong> sit inside the module and can test private code.</li><li><strong>Doc tests</strong> are the examples in <code>///</code> comments: <code>cargo test</code> compiles and runs them, so the docs can&#x27;t drift.</li><li><strong>Integration tests</strong> in <code>tests/</code> only see the public API.</li></ul>
+<h2 id="try-this">Try this</h2>
+<ol><li>Review, lesson 07: add an integration test that counts the words in a <code>report</code> string with an iterator chain.</li><li>Add Kelvin conversions with a doc test each.</li><li>Move <code>temperature</code> into its own file, <code>src/temperature.rs</code>.</li><li>Try calling <code>temperature::describe</code> from <code>tests/report.rs</code> and read the error.</li></ol></div>
+    <div class="code-col">
+      <section class="code-panel" aria-label="Source code">
+        <div class="file-tabs" role="tablist" aria-label="Files"><button class="file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-0" id="tab-0">src/main.rs</button><button class="file-tab" type="button" role="tab" aria-selected="false" aria-controls="file-1" id="tab-1">src/lib.rs</button><button class="file-tab" type="button" role="tab" aria-selected="false" aria-controls="file-2" id="tab-2">tests/report.rs</button></div>
+        <pre class="file lang-rust" id="file-0" role="tabpanel" aria-labelledby="tab-0" tabindex="0"><code><span class="t-kw">use</span> lesson_08_modules_testing::report;
+
+<span class="t-kw">fn</span> main() {
+    <span class="t-kw">for</span> (city, c) <span class="t-kw">in</span> [(<span class="t-string">&quot;Oslo&quot;</span>, -<span class="t-number">3.5</span>), (<span class="t-string">&quot;Lisbon&quot;</span>, <span class="t-number">19.0</span>), (<span class="t-string">&quot;Phoenix&quot;</span>, <span class="t-number">41.2</span>)] {
+        <span class="t-macro">println!</span>(<span class="t-string">&quot;{}&quot;</span>, report(city, c));
+    }
+}
+</code></pre><pre class="file lang-rust" id="file-1" role="tabpanel" aria-labelledby="tab-1" tabindex="0" hidden><code><span class="t-comment">//! Lesson 08: modules, a library crate, doc tests and integration tests.</span>
+
+<span class="t-comment">/// Temperature conversions.</span>
+<span class="t-kw">pub</span> <span class="t-kw">mod</span> temperature {
+    <span class="t-comment">/// Celsius to Fahrenheit.</span>
+    <span class="t-comment">///</span>
+    <span class="t-comment">/// ```</span>
+    <span class="t-comment">/// use lesson_08_modules_testing::temperature::c_to_f;</span>
+    <span class="t-comment">/// assert_eq!(c_to_f(100.0), 212.0);</span>
+    <span class="t-comment">/// ```</span>
+    <span class="t-kw">pub</span> <span class="t-kw">fn</span> c_to_f(c: f64) -&gt; f64 {
+        c * <span class="t-number">9.0</span> / <span class="t-number">5.0</span> + <span class="t-number">32.0</span>
+    }
+
+    <span class="t-comment">/// Fahrenheit to Celsius.</span>
+    <span class="t-comment">///</span>
+    <span class="t-comment">/// ```</span>
+    <span class="t-comment">/// use lesson_08_modules_testing::temperature::f_to_c;</span>
+    <span class="t-comment">/// assert_eq!(f_to_c(32.0), 0.0);</span>
+    <span class="t-comment">/// ```</span>
+    <span class="t-kw">pub</span> <span class="t-kw">fn</span> f_to_c(f: f64) -&gt; f64 {
+        (f - <span class="t-number">32.0</span>) * <span class="t-number">5.0</span> / <span class="t-number">9.0</span>
+    }
+
+    <span class="t-comment">/// Classify a Celsius reading. Kept private to the module tree on purpose.</span>
+    <span class="t-kw">pub</span>(<span class="t-kw">crate</span>) <span class="t-kw">fn</span> describe(c: f64) -&gt; &amp;<span class="t-lifetime">&#x27;static</span> str {
+        <span class="t-kw">match</span> c {
+            t <span class="t-kw">if</span> t &lt; <span class="t-number">0.0</span> =&gt; <span class="t-string">&quot;freezing&quot;</span>,
+            t <span class="t-kw">if</span> t &lt; <span class="t-number">15.0</span> =&gt; <span class="t-string">&quot;cold&quot;</span>,
+            t <span class="t-kw">if</span> t &lt; <span class="t-number">25.0</span> =&gt; <span class="t-string">&quot;mild&quot;</span>,
+            _ =&gt; <span class="t-string">&quot;hot&quot;</span>,
+        }
+    }
+
+    <span class="t-attr">#[cfg(test)]</span>
+    <span class="t-kw">mod</span> tests {
+        <span class="t-kw">use</span> <span class="t-kw">super</span>::*;
+
+        <span class="t-attr">#[test]</span>
+        <span class="t-kw">fn</span> round_trip() {
+            <span class="t-kw">for</span> c <span class="t-kw">in</span> [-<span class="t-number">40.0</span>, <span class="t-number">0.0</span>, <span class="t-number">37.0</span>, <span class="t-number">100.0</span>] {
+                <span class="t-macro">assert!</span>((f_to_c(c_to_f(c)) - c).abs() &lt; <span class="t-number">1e</span>-<span class="t-number">9</span>);
+            }
+        }
+
+        <span class="t-attr">#[test]</span>
+        <span class="t-kw">fn</span> minus_forty_is_the_same_on_both_scales() {
+            <span class="t-macro">assert_eq!</span>(c_to_f(-<span class="t-number">40.0</span>), -<span class="t-number">40.0</span>);
+        }
+    }
+}
+
+<span class="t-comment">/// A one-line weather report built from the module above.</span>
+<span class="t-kw">pub</span> <span class="t-kw">fn</span> report(city: &amp;str, celsius: f64) -&gt; <span class="t-ty">String</span> {
+    <span class="t-macro">format!</span>(<span class="t-string">&quot;{city}: {celsius:.1}°C / {:.1}°F, {}&quot;</span>, temperature::c_to_f(celsius), temperature::describe(celsius))
+}
+</code></pre><pre class="file lang-rust" id="file-2" role="tabpanel" aria-labelledby="tab-2" tabindex="0" hidden><code><span class="t-comment">// Integration tests only see the crate&#x27;s public API, like any other user would.</span>
+<span class="t-kw">use</span> lesson_08_modules_testing::{report, temperature};
+
+<span class="t-attr">#[test]</span>
+<span class="t-kw">fn</span> report_mentions_both_scales_and_a_word() {
+    <span class="t-macro">assert_eq!</span>(report(<span class="t-string">&quot;Oslo&quot;</span>, <span class="t-number">0.0</span>), <span class="t-string">&quot;Oslo: 0.0°C / 32.0°F, cold&quot;</span>);
+}
+
+<span class="t-attr">#[test]</span>
+<span class="t-kw">fn</span> public_functions_are_reachable() {
+    <span class="t-macro">assert_eq!</span>(temperature::f_to_c(<span class="t-number">212.0</span>), <span class="t-number">100.0</span>);
+}
+</code></pre>
+      </section>
+      <section class="output" aria-labelledby="out-h"><h2 id="out-h">What it prints</h2><details class="predict"><summary><b>Predict first.</b> Read the code, write down what it will print, then open this.</summary><pre><code>Oslo: -3.5°C / 25.7°F, freezing
+Lisbon: 19.0°C / 66.2°F, mild
+Phoenix: 41.2°C / 106.2°F, hot
+</code></pre></details><p class="small">Captured from a real run with rustc 1.99.1. </p></section>
+    </div>
+  </div>
+  <nav class="wrap pager" aria-label="Lessons">
+    <a class="prev" href="07-iterators-closures.html"><span>Previous</span>07 · Iterators and closures</a>
+    <a class="next" href="09-concurrency.html"><span>Next</span>09 · Fearless concurrency</a>
+  </nav>
+</article>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <p><strong>LearnRust</strong> · a free course of small, tested Rust programs. MIT licence. Not affiliated with the Rust Foundation.</p>
+  <p><a href="course.html">Course</a> · <a href="setup.html">Set up</a> · <a href="https://github.com/SolutionsAsService/LearnRust">Source on GitHub</a></p>
+</div></footer>
+<script src="js/site.js" defer></script>
+
+</body>
+</html>
